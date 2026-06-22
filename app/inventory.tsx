@@ -17,19 +17,10 @@ import {
   Freshness,
   freshnessOf,
   Ingredient,
-  INGREDIENTS,
   useSoon,
+  withSeedMeta,
 } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
-
-// Freshness/abundance aren't persisted to the backend yet, so fall back to the
-// seed metadata by id. (Until receipt scanning supplies real dates/quantities.)
-const SEED_META = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
-const enrich = (i: Ingredient): Ingredient => ({
-  ...i,
-  daysLeft: i.daysLeft ?? SEED_META[i.id]?.daysLeft,
-  abundance: i.abundance ?? SEED_META[i.id]?.abundance,
-});
 
 const FRESH_COLOR: Record<Freshness, string> = {
   fresh: Colors.fresh,
@@ -111,7 +102,7 @@ function UseSoonStrip({ items }: { items: Ingredient[] }) {
 export default function InventoryScreen() {
   const [query, setQuery] = useState('');
   const rawInventory = useKitchen((s) => s.inventory);
-  const inventory = useMemo(() => rawInventory.map(enrich), [rawInventory]);
+  const inventory = useMemo(() => rawInventory.map(withSeedMeta), [rawInventory]);
 
   const grouped = useMemo(() => {
     const q = query.trim().toLowerCase();

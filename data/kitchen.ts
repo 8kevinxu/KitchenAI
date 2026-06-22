@@ -97,6 +97,16 @@ export function freshnessOf(i: Ingredient): Freshness | null {
 const ABUNDANCE_LEVEL: Record<Abundance, number> = { low: 1, medium: 2, high: 3 };
 export const abundanceLevel = (a?: Abundance) => (a ? ABUNDANCE_LEVEL[a] : 0);
 
+// Freshness (daysLeft) and abundance aren't persisted to the backend yet, so
+// fall back to the seed metadata by id. (Until receipt scanning supplies real
+// dates/quantities.) Shared by the inventory and grocery screens.
+const SEED_META = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
+export const withSeedMeta = (i: Ingredient): Ingredient => ({
+  ...i,
+  daysLeft: i.daysLeft ?? SEED_META[i.id]?.daysLeft,
+  abundance: i.abundance ?? SEED_META[i.id]?.abundance,
+});
+
 /** Items worth using soon (expiring/expired but still in stock), most urgent first. */
 export function useSoon(inventory: Ingredient[]): Ingredient[] {
   return inventory
@@ -245,17 +255,23 @@ export type GroceryGroup = {
 
 /**
  * Auto-generates a shopping list from the given inventory: anything out,
- * expired, or below its restock threshold. In a real build this would also
- * fold in ingredients missing from saved/planned recipes.
+ * expired, or low in stock. Each item lands in a single group by priority
+ * (out > expired > low), so nothing is double-listed. In a real build this
+ * would also fold in ingredients missing from saved/planned recipes.
  */
 export function buildGroceryList(inventory: Ingredient[]): GroceryGroup[] {
-  const groups: { reason: GroceryReason; match: (i: Ingredient) => boolean }[] = [
+  const rules: { reason: GroceryReason; match: (i: Ingredient) => boolean }[] = [
     { reason: 'Out of stock', match: (i) => i.status === 'out' },
-    { reason: 'Expired', match: (i) => i.status === 'expired' },
-    { reason: 'Running low', match: (i) => !!i.lowStock },
+    { reason: 'Expired', match: (i) => freshnessOf(i) === 'expired' },
+    { reason: 'Running low', match: (i) => i.abundance === 'low' },
   ];
-  return groups
-    .map(({ reason, match }) => ({ reason, items: inventory.filter(match) }))
+  const claimed = new Set<string>();
+  return rules
+    .map(({ reason, match }) => {
+      const items = inventory.filter((i) => !claimed.has(i.id) && match(i));
+      items.forEach((i) => claimed.add(i.id));
+      return { reason, items };
+    })
     .filter((g) => g.items.length > 0);
 }
 

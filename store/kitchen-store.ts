@@ -11,13 +11,19 @@ import * as api from '@/lib/api';
 
 const warn = (e: unknown) => console.warn('[kitchen-store] supabase sync failed', e);
 
+export type GroceryItem = { id: string; name: string; emoji: string };
+
 type KitchenState = {
   /** Current pantry inventory. */
   inventory: Ingredient[];
   /** Saved recipe ids. */
   savedRecipeIds: string[];
-  /** Which grocery-list items have been checked off. */
+  /** Grocery items selected for the shared list. Absent id = selected (default on). */
   groceryChecked: Record<string, boolean>;
+  /** User-added grocery items (not auto-detected from inventory). */
+  customGrocery: GroceryItem[];
+  /** Ids of auto-generated grocery items the user removed from the list. */
+  dismissedGrocery: string[];
   /** True once persisted state has been read from disk. */
   hasHydrated: boolean;
   /** True once we've reconciled with Supabase (or confirmed it's unconfigured). */
@@ -25,7 +31,13 @@ type KitchenState = {
 
   isSaved: (id: string) => boolean;
   toggleSaved: (id: string) => void;
+  /** An item is selected for the shared list unless explicitly turned off. */
+  isGrocerySelected: (id: string) => boolean;
   toggleGrocery: (id: string) => void;
+  /** Add a custom grocery item (selected by default). */
+  addGroceryItem: (name: string) => void;
+  /** Remove an item from the grocery list (dismiss auto item or delete custom). */
+  removeGroceryItem: (id: string) => void;
   /** Simulate a receipt scan: add any not-yet-stocked items. Returns count added. */
   addScannedItems: () => number;
   /** Mark on-hand ingredients used by a cooked recipe as running low. */
@@ -40,6 +52,8 @@ const seed = () => ({
   inventory: INGREDIENTS.map((i) => ({ ...i })),
   savedRecipeIds: [...SAVED_RECIPE_IDS],
   groceryChecked: {} as Record<string, boolean>,
+  customGrocery: [] as GroceryItem[],
+  dismissedGrocery: [] as string[],
 });
 
 export const useKitchen = create<KitchenState>()(
@@ -61,10 +75,33 @@ export const useKitchen = create<KitchenState>()(
         api.setSaved(id, willSave).catch(warn);
       },
 
+      isGrocerySelected: (id) => get().groceryChecked[id] !== false,
+
       toggleGrocery: (id) => {
-        const next = !get().groceryChecked[id];
+        const next = !(get().groceryChecked[id] !== false);
         set((s) => ({ groceryChecked: { ...s.groceryChecked, [id]: next } }));
         api.setGroceryChecked(id, next).catch(warn);
+      },
+
+      addGroceryItem: (name) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const item: GroceryItem = {
+          id: `custom:${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: trimmed,
+          emoji: '🛒',
+        };
+        set((s) => ({ customGrocery: [...s.customGrocery, item] }));
+      },
+
+      removeGroceryItem: (id) => {
+        set((s) => {
+          const groceryChecked = { ...s.groceryChecked };
+          delete groceryChecked[id];
+          return id.startsWith('custom:')
+            ? { customGrocery: s.customGrocery.filter((i) => i.id !== id), groceryChecked }
+            : { dismissedGrocery: [...new Set([...s.dismissedGrocery, id])], groceryChecked };
+        });
       },
 
       addScannedItems: () => {
@@ -127,10 +164,12 @@ export const useKitchen = create<KitchenState>()(
             }
           : AsyncStorage,
       ),
-      partialize: ({ inventory, savedRecipeIds, groceryChecked }) => ({
+      partialize: ({ inventory, savedRecipeIds, groceryChecked, customGrocery, dismissedGrocery }) => ({
         inventory,
         savedRecipeIds,
         groceryChecked,
+        customGrocery,
+        dismissedGrocery,
       }),
       onRehydrateStorage: () => () => {
         useKitchen.setState({ hasHydrated: true });
