@@ -1,12 +1,13 @@
 import { rankByInventory } from '@/lib/recipes/match';
+import { spoonacular } from '@/lib/recipes/spoonacular';
 import { theMealDb } from '@/lib/recipes/themealdb';
 import { RankedRecipe, RecipeDetail, RecipeProvider } from '@/lib/recipes/types';
 
 export * from '@/lib/recipes/types';
 
-// Active recipe sources. Add the Spoonacular provider here later — the rest of
-// the app is already source-agnostic.
-const PROVIDERS: RecipeProvider[] = [theMealDb];
+// Active recipe sources. Both speak the same RecipeProvider interface, so the
+// matcher and screens are unchanged. Spoonacular no-ops if its key is unset.
+const PROVIDERS: RecipeProvider[] = [theMealDb, spoonacular];
 
 /** Recommend dishes the user can cook, ranked by how well they fit inventory. */
 export async function recommendRecipes(
