@@ -47,6 +47,21 @@ Then open the app in:
 - an iOS simulator (`i`) or Android emulator (`a`)
 - the web build (`w`)
 
+## Backend (optional)
+
+The app persists locally with AsyncStorage and runs fully **without** a backend.
+If you add Supabase, state also syncs to a hosted Postgres database (single
+shared dataset for now; the schema is user-ready for accounts later).
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In the SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
+3. Copy `.env.example` to `.env` and fill in your project URL + anon key
+   (Project Settings → API).
+
+On launch the app seeds an empty database, then reads it as the source of
+truth and writes through on every change. Without `.env`, it silently falls
+back to local-only mode.
+
 ## Project structure
 
 ```
@@ -62,7 +77,11 @@ app/                 # Screens (file-based routes)
   grocery.tsx        # Grocery list
 components/           # Shared UI (Screen wrapper, Wordmark)
 constants/theme.ts   # Colors, fonts, spacing tokens
-data/kitchen.ts      # Mock inventory, recipes, cuisines + grocery-list builder
+data/kitchen.ts      # Seed inventory, recipes, cuisines + grocery-list builder
+store/kitchen-store.ts  # Zustand store (AsyncStorage + Supabase sync)
+lib/supabase.ts      # Supabase client
+lib/api.ts           # Data layer: store shapes <-> Postgres rows
+supabase/schema.sql  # Database schema + RLS policies
 ```
 
 ## Roadmap
@@ -96,5 +115,6 @@ Current status reflects the UI-only milestone.
 
 ### Foundations
 - [x] Persist inventory, saved recipes, and grocery state (AsyncStorage + zustand)
-- [ ] Sync to a backend / account
+- [x] Sync to a hosted backend (Supabase / Postgres)
+- [ ] User accounts (Supabase Auth) — schema is already user-ready
 - [ ] Custom iconography to replace placeholder emoji
