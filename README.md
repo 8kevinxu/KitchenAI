@@ -10,9 +10,12 @@ It's aimed at busy individuals and families, students and young professionals
 living independently, and people with dietary restrictions who need the right
 ingredients on hand.
 
-This repo currently holds the **initial UI build** — all screens are
-implemented and navigable with mock data. Receipt scanning, persistence, and AI
-recipe suggestions are not wired up yet (see [Roadmap](#roadmap)).
+**Current state:** all screens are built and navigable. State persists locally
+(AsyncStorage) and syncs to a hosted Supabase Postgres backend. The Recipes
+section is live — it recommends real dishes from your inventory, ranked by how
+much of your pantry each uses, pulling from TheMealDB and Spoonacular, and
+browsable by cuisine. Still ahead: user accounts, real camera receipt scanning
+(currently a mock), expiration alerts, and recipe filters (see [Roadmap](#roadmap)).
 
 ## Screens
 
