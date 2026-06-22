@@ -17,6 +17,28 @@ type Display = {
   ingredientNames: string[];
 };
 
+/** Leading quantity units to strip when turning a recipe line into a grocery item. */
+const UNIT =
+  /^(cups?|tbsps?|tbs|tablespoons?|tsps?|teaspoons?|ounces?|oz|lbs?|pounds?|grams?|g|kg|ml|l|cloves?|pieces?|stalks?|cans?|pinch(?:es)?|dash(?:es)?|sprinkle|drops?|slices?|sticks?|packages?|pkgs?|bunch(?:es)?|handfuls?|of)$/i;
+
+/**
+ * Turn a recipe ingredient line ("1/2 cup frozen peas") into a tidy grocery
+ * item ("Frozen peas") by stripping leading amounts/units and parentheticals.
+ */
+function toGroceryName(raw: string): string {
+  const words = raw
+    .replace(/\([^)]*\)/g, ' ') // drop "(diced)" etc.
+    .trim()
+    .split(/\s+/);
+  while (words.length > 1) {
+    const w = words[0].toLowerCase().replace(/[.,]$/, '');
+    if (/^[\d¼½¾⅓⅔⅛⅜⅝⅞/.-]+$/.test(w) || UNIT.test(w)) words.shift();
+    else break;
+  }
+  const name = words.join(' ').trim();
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : raw.trim();
+}
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <View style={styles.sectionLabelRow}>
@@ -37,19 +59,23 @@ export default function RecipeDetailScreen() {
   const toggleSaved = useKitchen((s) => s.toggleSaved);
   const consumeIngredients = useKitchen((s) => s.consumeIngredients);
   const inventory = useKitchen((s) => s.inventory);
+  const customGrocery = useKitchen((s) => s.customGrocery);
+  const addGroceryItem = useKitchen((s) => s.addGroceryItem);
 
   const hasIngredient = useMemo(
     () => inventoryMatcher(inventory.map((i) => i.name)),
     [inventory],
   );
-  const haveCount = useMemo(
-    () => (display ? display.groups.flatMap((g) => g.items).filter(hasIngredient).length : 0),
-    [display, hasIngredient],
-  );
-  const totalCount = useMemo(
-    () => (display ? display.groups.flatMap((g) => g.items).length : 0),
+  const allItems = useMemo(
+    () => (display ? display.groups.flatMap((g) => g.items) : []),
     [display],
   );
+  const missingItems = useMemo(
+    () => allItems.filter((i) => !hasIngredient(i)),
+    [allItems, hasIngredient],
+  );
+  const haveCount = allItems.length - missingItems.length;
+  const totalCount = allItems.length;
 
   useEffect(() => {
     let active = true;
@@ -90,6 +116,25 @@ export default function RecipeDetailScreen() {
       active = false;
     };
   }, [id]);
+
+  const onAddMissingToGrocery = () => {
+    const existing = new Set(customGrocery.map((g) => g.name.trim().toLowerCase()));
+    let added = 0;
+    for (const item of missingItems) {
+      const name = toGroceryName(item);
+      const key = name.toLowerCase();
+      if (existing.has(key)) continue;
+      existing.add(key);
+      addGroceryItem(name);
+      added += 1;
+    }
+    Alert.alert(
+      added ? 'Added to grocery list' : 'Already on your list',
+      added
+        ? `${added} missing ingredient${added === 1 ? '' : 's'} added to your grocery list.`
+        : 'These missing ingredients are already on your grocery list.',
+    );
+  };
 
   const onUpdateInventory = () => {
     if (display) consumeIngredients(display.ingredientNames);
@@ -166,6 +211,18 @@ export default function RecipeDetailScreen() {
               </View>
             ))}
           </View>
+
+          {missingItems.length > 0 && (
+            <TouchableOpacity
+              style={[styles.actionPill, styles.groceryPill]}
+              activeOpacity={0.85}
+              onPress={onAddMissingToGrocery}>
+              <Ionicons name="cart-outline" size={18} color={Colors.text} />
+              <Text style={styles.groceryPillText}>
+                ADD {missingItems.length} MISSING TO GROCERY LIST
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.sideTab}
@@ -315,6 +372,8 @@ const styles = StyleSheet.create({
   savePillText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.text },
   updatePill: { backgroundColor: Colors.green },
   updatePillText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.greenText },
+  groceryPill: { backgroundColor: Colors.yellow, marginTop: 8, marginRight: 56 },
+  groceryPillText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.text },
 
   backToIngredients: { alignSelf: 'center', marginTop: 18 },
   backToIngredientsText: { fontFamily: Fonts.serifItalic, fontSize: 13, color: Colors.muted },
