@@ -4,12 +4,8 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import {
-  CATEGORY_ORDER,
-  Ingredient,
-  INGREDIENTS,
-  IngredientStatus,
-} from '@/data/kitchen';
+import { CATEGORY_ORDER, Ingredient, IngredientStatus } from '@/data/kitchen';
+import { useKitchen } from '@/store/kitchen-store';
 
 const STATUS_LABEL: Record<Exclude<IngredientStatus, 'ok'>, string> = {
   expired: 'EXPIRED',
@@ -39,16 +35,17 @@ function IngredientCell({ item }: { item: Ingredient }) {
 
 export default function InventoryScreen() {
   const [query, setQuery] = useState('');
+  const inventory = useKitchen((s) => s.inventory);
 
   const grouped = useMemo(() => {
     const q = query.trim().toLowerCase();
     return CATEGORY_ORDER.map((category) => ({
       category,
-      items: INGREDIENTS.filter(
+      items: inventory.filter(
         (i) => i.category === category && (!q || i.name.includes(q)),
       ),
     })).filter((g) => g.items.length > 0);
-  }, [query]);
+  }, [query, inventory]);
 
   return (
     <Screen showBack>

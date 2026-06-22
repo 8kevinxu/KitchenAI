@@ -14,6 +14,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
+import { useKitchen } from '@/store/kitchen-store';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -25,8 +26,9 @@ export default function RootLayout() {
     Jost_600SemiBold,
     Jost_700Bold,
   });
+  const hydrated = useKitchen((s) => s.hasHydrated);
 
-  if (!loaded) {
+  if (!loaded || !hydrated) {
     return null;
   }
 

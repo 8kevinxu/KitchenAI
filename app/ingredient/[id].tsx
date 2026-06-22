@@ -2,7 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts } from '@/constants/theme';
-import { INGREDIENT_DETAILS, INGREDIENTS } from '@/data/kitchen';
+import { INGREDIENT_DETAILS } from '@/data/kitchen';
+import { useKitchen } from '@/store/kitchen-store';
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -17,7 +18,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 export default function IngredientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ingredient = INGREDIENTS.find((i) => i.id === id);
+  const ingredient = useKitchen((s) => s.inventory.find((i) => i.id === id));
   const detail =
     (id && INGREDIENT_DETAILS[id]) || {
       status: 'In stock',

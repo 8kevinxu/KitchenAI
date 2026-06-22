@@ -5,11 +5,13 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '@/components/wordmark';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { RECIPES, SAVED_RECIPE_IDS, USER } from '@/data/kitchen';
+import { RECIPES, USER } from '@/data/kitchen';
+import { useKitchen } from '@/store/kitchen-store';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const saved = RECIPES.filter((r) => SAVED_RECIPE_IDS.includes(r.id));
+  const savedIds = useKitchen((s) => s.savedRecipeIds);
+  const saved = RECIPES.filter((r) => savedIds.includes(r.id));
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -43,16 +45,23 @@ export default function ProfileScreen() {
           <Ionicons name="bookmark" size={18} color={Colors.text} />
         </View>
 
-        {saved.map((r) => (
-          <TouchableOpacity
-            key={r.id}
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() => router.push(`/recipe/${r.id}`)}>
-            <Image source={{ uri: r.image }} style={styles.cardThumb} contentFit="cover" />
-            <Text style={styles.cardTitle}>{r.title}</Text>
-          </TouchableOpacity>
-        ))}
+        {saved.length === 0 ? (
+          <Text style={styles.empty}>
+            No saved recipes yet. Tap “Save this recipe” on any recipe to keep it
+            here.
+          </Text>
+        ) : (
+          saved.map((r) => (
+            <TouchableOpacity
+              key={r.id}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => router.push(`/recipe/${r.id}`)}>
+              <Image source={{ uri: r.image }} style={styles.cardThumb} contentFit="cover" />
+              <Text style={styles.cardTitle}>{r.title}</Text>
+            </TouchableOpacity>
+          ))
+        )}
 
         <Text style={styles.footer}>Questions? {USER.email}</Text>
       </ScrollView>
@@ -118,6 +127,13 @@ const styles = StyleSheet.create({
   },
   cardThumb: { width: 76, height: 76, borderRadius: 10 },
   cardTitle: { fontFamily: Fonts.sansMedium, fontSize: 18, color: Colors.text },
+  empty: {
+    fontFamily: Fonts.serifItalic,
+    fontSize: 14,
+    color: Colors.muted,
+    lineHeight: 22,
+    marginTop: 8,
+  },
   footer: {
     fontFamily: Fonts.serif,
     fontSize: 10,

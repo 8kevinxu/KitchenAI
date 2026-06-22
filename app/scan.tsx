@@ -1,12 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Fonts } from '@/constants/theme';
+import { useKitchen } from '@/store/kitchen-store';
 
 /** Mock grocery-scanning screen. A real build would use expo-camera here. */
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
+  const addScannedItems = useKitchen((s) => s.addScannedItems);
+
+  const onCapture = () => {
+    const added = addScannedItems();
+    if (added > 0) {
+      Alert.alert(
+        'Receipt scanned',
+        `Added ${added} new item${added === 1 ? '' : 's'} to your inventory.`,
+        [{ text: 'View inventory', onPress: () => router.replace('/inventory') }],
+      );
+    } else {
+      Alert.alert('Receipt scanned', 'Your inventory is already up to date.', [
+        { text: 'OK', onPress: () => router.replace('/inventory') },
+      ]);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -28,10 +45,7 @@ export default function ScanScreen() {
       </View>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 28 }]}>
-        <TouchableOpacity
-          style={styles.shutter}
-          activeOpacity={0.8}
-          onPress={() => router.replace('/inventory')}>
+        <TouchableOpacity style={styles.shutter} activeOpacity={0.8} onPress={onCapture}>
           <View style={styles.shutterInner} />
         </TouchableOpacity>
         <Text style={styles.caption}>Tap to capture · adds items to your inventory</Text>

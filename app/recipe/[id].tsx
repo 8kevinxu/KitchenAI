@@ -1,10 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { RECIPES, SAVED_RECIPE_IDS } from '@/data/kitchen';
+import { RECIPES } from '@/data/kitchen';
+import { useKitchen } from '@/store/kitchen-store';
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -21,7 +22,17 @@ export default function RecipeDetailScreen() {
   const recipe = RECIPES.find((r) => r.id === id) ?? RECIPES[0];
 
   const [tab, setTab] = useState<'ingredients' | 'directions'>('ingredients');
-  const [saved, setSaved] = useState(SAVED_RECIPE_IDS.includes(recipe.id));
+  const saved = useKitchen((s) => s.savedRecipeIds.includes(recipe.id));
+  const toggleSaved = useKitchen((s) => s.toggleSaved);
+  const consumeRecipe = useKitchen((s) => s.consumeRecipe);
+
+  const onUpdateInventory = () => {
+    consumeRecipe(recipe.id);
+    Alert.alert(
+      'Inventory updated',
+      'Ingredients used in this recipe were marked as running low and added to your grocery list.',
+    );
+  };
 
   return (
     <Screen showBack>
@@ -67,7 +78,7 @@ export default function RecipeDetailScreen() {
           <TouchableOpacity
             style={[styles.actionPill, styles.savePill]}
             activeOpacity={0.85}
-            onPress={() => setSaved((s) => !s)}>
+            onPress={() => toggleSaved(recipe.id)}>
             <Text style={styles.savePillText}>
               {saved ? 'RECIPE SAVED' : 'SAVE THIS RECIPE'}
             </Text>
@@ -78,7 +89,10 @@ export default function RecipeDetailScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionPill, styles.updatePill]} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[styles.actionPill, styles.updatePill]}
+            activeOpacity={0.85}
+            onPress={onUpdateInventory}>
             <Text style={styles.updatePillText}>UPDATE YOUR INVENTORY</Text>
             <MaterialCommunityIcons
               name="help-circle-outline"

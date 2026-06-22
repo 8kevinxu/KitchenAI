@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { buildGroceryList, Ingredient } from '@/data/kitchen';
+import { useKitchen } from '@/store/kitchen-store';
 
 function GroceryRow({
   item,
@@ -26,13 +27,17 @@ function GroceryRow({
 }
 
 export default function GroceryScreen() {
-  const groups = useMemo(() => buildGroceryList(), []);
-  const total = groups.reduce((n, g) => n + g.items.length, 0);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const remaining = total - Object.values(checked).filter(Boolean).length;
+  const inventory = useKitchen((s) => s.inventory);
+  const checked = useKitchen((s) => s.groceryChecked);
+  const toggle = useKitchen((s) => s.toggleGrocery);
 
-  const toggle = (id: string) =>
-    setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
+  const groups = useMemo(() => buildGroceryList(inventory), [inventory]);
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
+  const remaining =
+    total -
+    groups
+      .flatMap((g) => g.items)
+      .filter((i) => checked[i.id]).length;
 
   return (
     <Screen showBack>

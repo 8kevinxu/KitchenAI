@@ -214,17 +214,29 @@ export type GroceryGroup = {
 };
 
 /**
- * Auto-generates a shopping list from the current inventory: anything out,
+ * Auto-generates a shopping list from the given inventory: anything out,
  * expired, or below its restock threshold. In a real build this would also
  * fold in ingredients missing from saved/planned recipes.
  */
-export function buildGroceryList(): GroceryGroup[] {
+export function buildGroceryList(inventory: Ingredient[]): GroceryGroup[] {
   const groups: { reason: GroceryReason; match: (i: Ingredient) => boolean }[] = [
     { reason: 'Out of stock', match: (i) => i.status === 'out' },
     { reason: 'Expired', match: (i) => i.status === 'expired' },
     { reason: 'Running low', match: (i) => !!i.lowStock },
   ];
   return groups
-    .map(({ reason, match }) => ({ reason, items: INGREDIENTS.filter(match) }))
+    .map(({ reason, match }) => ({ reason, items: inventory.filter(match) }))
     .filter((g) => g.items.length > 0);
 }
+
+/**
+ * Items a receipt "scan" can add to the inventory. Mirrors the NEW items shown
+ * in the Figma inventory variant. Used by the mock Scan flow.
+ */
+export const SCANNED_ITEMS: Ingredient[] = [
+  { id: 'pepper-jack', name: 'pepper jack', emoji: '🧀', status: 'new', category: 'Proteins' },
+  { id: 'mushroom', name: 'mushroom', emoji: '🍄', status: 'new', category: 'Vegetables' },
+  { id: 'tomato', name: 'tomato', emoji: '🍅', status: 'new', category: 'Vegetables' },
+  { id: 'buns', name: 'buns', emoji: '🍞', status: 'new', category: 'Carbs' },
+  { id: 'olive-oil', name: 'olive oil', emoji: '🫒', status: 'new', category: 'Seasonings' },
+];
