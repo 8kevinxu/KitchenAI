@@ -8,6 +8,7 @@ import {
   SCANNED_ITEMS,
 } from '@/data/kitchen';
 import * as api from '@/lib/api';
+import { ParsedItem } from '@/lib/scan';
 
 const warn = (e: unknown) => console.warn('[kitchen-store] supabase sync failed', e);
 
@@ -40,6 +41,11 @@ type KitchenState = {
   removeGroceryItem: (id: string) => void;
   /** Simulate a receipt scan: add any not-yet-stocked items. Returns count added. */
   addScannedItems: () => number;
+  /** Parsed items awaiting review after a receipt scan (transient, not persisted). */
+  pendingScan: ParsedItem[];
+  setPendingScan: (items: ParsedItem[]) => void;
+  /** Add reviewed items to inventory, merging with anything already on hand. */
+  addInventoryItems: (items: Ingredient[]) => void;
   /** Mark on-hand ingredients used by a cooked recipe as running low. */
   consumeIngredients: (ingredientNames: string[]) => void;
   /** Pull from Supabase on launch; seed the server if it's empty. */
@@ -62,6 +68,7 @@ export const useKitchen = create<KitchenState>()(
       ...seed(),
       hasHydrated: false,
       serverSynced: false,
+      pendingScan: [],
 
       isSaved: (id) => get().savedRecipeIds.includes(id),
 
@@ -112,6 +119,26 @@ export const useKitchen = create<KitchenState>()(
           api.upsertItems(additions).catch(warn);
         }
         return additions.length;
+      },
+
+      setPendingScan: (items) => set({ pendingScan: items }),
+
+      addInventoryItems: (items) => {
+        const changed: Ingredient[] = [];
+        set((s) => {
+          const byId = new Map(s.inventory.map((i) => [i.id, i]));
+          for (const it of items) {
+            const existing = byId.get(it.id);
+            // Re-stocking an item we already have: mark fresh, clear low/out flags.
+            const merged = existing
+              ? { ...existing, status: 'new' as const, lowStock: false }
+              : it;
+            byId.set(it.id, merged);
+            changed.push(merged);
+          }
+          return { inventory: [...byId.values()] };
+        });
+        api.upsertItems(changed).catch(warn);
       },
 
       consumeIngredients: (ingredientNames) => {
