@@ -62,6 +62,21 @@ On launch the app seeds an empty database, then reads it as the source of
 truth and writes through on every change. Without `.env`, it silently falls
 back to local-only mode.
 
+### Spoonacular proxy (optional)
+
+The Spoonacular recipe source is reached through a Supabase Edge Function
+([`supabase/functions/spoonacular`](./supabase/functions/spoonacular)) so the
+API key stays server-side instead of shipping in the client bundle. Deploy it
+and set the secret:
+
+```bash
+supabase functions deploy spoonacular
+supabase secrets set SPOONACULAR_API_KEY=your-key
+```
+
+(Or deploy via the dashboard's Edge Functions editor + Secrets.) If it isn't
+deployed, the app just uses TheMealDB.
+
 ## Project structure
 
 ```
@@ -88,6 +103,7 @@ lib/recipes/         # Recipe providers + inventory matcher
   spoonacular.ts     #   Spoonacular provider (optional, key-gated)
   index.ts           #   recommendRecipes() / recommendByCuisine() / getRecipeDetail()
 supabase/schema.sql  # Database schema + RLS policies
+supabase/functions/spoonacular/  # Edge Function: server-side Spoonacular proxy
 ```
 
 ## Roadmap
