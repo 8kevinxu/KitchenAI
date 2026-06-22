@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { recommendRecipes, RankedRecipe } from '@/lib/recipes';
+import { recommendByCuisine, recommendRecipes, RankedRecipe } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
 
 export default function RecipesScreen() {
+  const { cuisine } = useLocalSearchParams<{ cuisine?: string }>();
   const inventory = useKitchen((s) => s.inventory);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [recipes, setRecipes] = useState<RankedRecipe[]>([]);
@@ -17,7 +18,10 @@ export default function RecipesScreen() {
     let active = true;
     setStatus('loading');
     const names = inventory.map((i) => i.name);
-    recommendRecipes(names)
+    const request = cuisine
+      ? recommendByCuisine(cuisine, names)
+      : recommendRecipes(names);
+    request
       .then((r) => {
         if (!active) return;
         setRecipes(r);
@@ -27,15 +31,17 @@ export default function RecipesScreen() {
     return () => {
       active = false;
     };
-  }, [inventory]);
+  }, [inventory, cuisine]);
+
+  const title = cuisine
+    ? `${cuisine} dishes you can make with your ingredients`
+    : 'Recommended recipes based on your ingredients and preferences...';
 
   return (
     <Screen showBack>
-      <Text style={styles.intro}>
-        Recommended recipes based on your ingredients and preferences...
-      </Text>
+      <Text style={styles.intro}>{title}</Text>
 
-      {status === 'ready' && (
+      {status === 'ready' && recipes.length > 0 && (
         <View style={styles.legend}>
           <Ionicons name="information-circle-outline" size={14} color={Colors.text} />
           <Text style={styles.legendText}>missing ingredient(s)</Text>
@@ -60,7 +66,9 @@ export default function RecipesScreen() {
       {status === 'ready' && recipes.length === 0 && (
         <View style={styles.center}>
           <Text style={styles.centerText}>
-            No matches yet — add a few more ingredients to your inventory.
+            {cuisine
+              ? `No ${cuisine.toLowerCase()} recipes in our recipe base yet — more are coming as we add sources.`
+              : 'No matches yet — add a few more ingredients to your inventory.'}
           </Text>
         </View>
       )}

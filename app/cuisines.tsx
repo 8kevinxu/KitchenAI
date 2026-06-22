@@ -34,7 +34,9 @@ export default function CuisinesScreen() {
             key={c.name}
             style={styles.tile}
             activeOpacity={0.7}
-            onPress={() => router.push('/recipes')}>
+            onPress={() =>
+              router.push({ pathname: '/recipes', params: { cuisine: c.name } })
+            }>
             <Text style={styles.tileLabel}>{c.name}</Text>
             <Text style={styles.tileEmoji}>{c.emoji}</Text>
           </TouchableOpacity>

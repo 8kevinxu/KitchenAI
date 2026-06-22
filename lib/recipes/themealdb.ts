@@ -7,6 +7,22 @@ const PREFIX = 'themealdb:';
 // into full recipes — keeps request volume reasonable.
 const MAX_PROBES = 10;
 const MAX_CANDIDATES = 18;
+const MAX_CUISINE = 24;
+
+// App cuisine label -> TheMealDB "area". Only areas that actually carry recipes
+// on the free tier are mapped; the rest resolve to undefined (no results).
+const CUISINE_AREA: Record<string, string | undefined> = {
+  CHINESE: 'Chinese',
+  JAPANESE: 'Japanese',
+  MEXICAN: 'Mexican',
+  FILIPINO: 'Filipino',
+  VIETNAMESE: 'Vietnamese',
+  ITALIAN: 'Italian',
+  // Not available in TheMealDB's free dataset (handled by other providers later):
+  AMERICAN: undefined,
+  KOREAN: undefined,
+  PERSIAN: undefined,
+};
 
 type FilterMeal = { idMeal: string; strMeal: string; strMealThumb: string };
 type LookupMeal = {
@@ -92,6 +108,20 @@ export const theMealDb: RecipeProvider = {
       candidates.map((c) => this.getRecipe(PREFIX + c.meal.idMeal)),
     );
 
+    return detailed.filter((r): r is RecipeDetail => r !== null);
+  },
+
+  async findByCuisine(cuisine) {
+    const area = CUISINE_AREA[cuisine.toUpperCase()];
+    if (!area) return [];
+
+    const data = await getJSON<{ meals: FilterMeal[] | null }>(
+      `${BASE}/filter.php?a=${encodeURIComponent(area)}`,
+    );
+    const meals = (data?.meals ?? []).slice(0, MAX_CUISINE);
+    const detailed = await Promise.all(
+      meals.map((m) => this.getRecipe(PREFIX + m.idMeal)),
+    );
     return detailed.filter((r): r is RecipeDetail => r !== null);
   },
 

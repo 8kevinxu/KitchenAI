@@ -31,6 +31,28 @@ export async function recommendRecipes(
   return rankByInventory(merged, inventory).slice(0, limit);
 }
 
+/** Recipes for a specific cuisine, ordered by how well they fit the inventory
+ *  (but not filtered out when nothing matches — this is a browse view). */
+export async function recommendByCuisine(
+  cuisine: string,
+  inventory: string[],
+  limit = 30,
+): Promise<RankedRecipe[]> {
+  const results = await Promise.all(
+    PROVIDERS.map((p) => p.findByCuisine(cuisine).catch(() => [])),
+  );
+
+  const seen = new Set<string>();
+  const merged = results.flat().filter((r) => {
+    const key = r.title.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return rankByInventory(merged, inventory, { minUsed: 0 }).slice(0, limit);
+}
+
 /** Fetch full detail for a source-prefixed recipe id. */
 export async function getRecipeDetail(id: string): Promise<RecipeDetail | null> {
   const source = id.split(':')[0];

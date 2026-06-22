@@ -35,6 +35,9 @@ export interface RecipeProvider {
   source: RecipeSource;
   /** Find candidate recipes given the user's inventory ingredient names. */
   findByIngredients(ingredients: string[]): Promise<RecipeSummary[]>;
+  /** Recipes belonging to a cuisine (app label, e.g. "CHINESE"). Empty if the
+   *  provider doesn't carry that cuisine. */
+  findByCuisine(cuisine: string): Promise<RecipeSummary[]>;
   /** Full detail for a source-prefixed recipe id, or null if not found. */
   getRecipe(id: string): Promise<RecipeDetail | null>;
 }
