@@ -1,14 +1,15 @@
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { RecipeDetail, RecipeProvider, RecipeSummary } from '@/lib/recipes/types';
 
-const KEY = process.env.EXPO_PUBLIC_SPOONACULAR_API_KEY;
-const BASE = 'https://api.spoonacular.com';
 const PREFIX = 'spoonacular:';
 
-export const isSpoonacularConfigured = Boolean(KEY);
+// Spoonacular is reached through a Supabase Edge Function ("spoonacular") that
+// holds the API key server-side, so no key ships in the client bundle. It's
+// available whenever Supabase is configured (and the function is deployed).
+export const isSpoonacularConfigured = isSupabaseConfigured;
 
-// App cuisine label -> Spoonacular cuisine. Spoonacular has no "Filipino"
-// (TheMealDB covers that); the rest — including Korean/American/Persian that
-// TheMealDB lacks — map here.
+// App cuisine label -> Spoonacular cuisine. No "Filipino" (TheMealDB covers
+// that); the rest — including Korean/American/Persian that TheMealDB lacks.
 const CUISINE: Record<string, string | undefined> = {
   CHINESE: 'Chinese',
   JAPANESE: 'Japanese',
@@ -29,12 +30,19 @@ type SpoonIngredient = {
 
 const detailCache = new Map<string, RecipeDetail | null>();
 
-async function getJSON<T>(path: string): Promise<T | null> {
+/** Call the Spoonacular proxy edge function. Returns null on any failure. */
+async function invoke<T>(
+  endpoint: string,
+  params: Record<string, string> = {},
+  id?: string,
+): Promise<T | null> {
+  if (!isSupabaseConfigured) return null;
   try {
-    const sep = path.includes('?') ? '&' : '?';
-    const res = await fetch(`${BASE}${path}${sep}apiKey=${KEY}`);
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    const { data, error } = await supabase.functions.invoke('spoonacular', {
+      body: { endpoint, params, id },
+    });
+    if (error) return null;
+    return data as T;
   } catch {
     return null;
   }
@@ -43,21 +51,26 @@ async function getJSON<T>(path: string): Promise<T | null> {
 const measureOf = (i: SpoonIngredient) => {
   const m = i.measures?.us;
   if (!m) return '';
-  const amount = Number.isInteger(m.amount) ? `${m.amount}` : m.amount.toFixed(2).replace(/\.?0+$/, '');
+  const amount = Number.isInteger(m.amount)
+    ? `${m.amount}`
+    : m.amount.toFixed(2).replace(/\.?0+$/, '');
   return `${amount} ${m.unitShort}`.trim();
 };
 
-function summaryFrom(id: number, title: string, image: string, names: string[]): RecipeSummary {
-  return { id: PREFIX + id, source: 'spoonacular', title, image, ingredientNames: names };
-}
+const summaryFrom = (id: number, title: string, image: string, names: string[]): RecipeSummary => ({
+  id: PREFIX + id,
+  source: 'spoonacular',
+  title,
+  image,
+  ingredientNames: names,
+});
 
 export const spoonacular: RecipeProvider = {
   source: 'spoonacular',
 
   async findByIngredients(ingredients) {
-    if (!isSpoonacularConfigured || ingredients.length === 0) return [];
-    const list = encodeURIComponent(ingredients.join(','));
-    const data = await getJSON<
+    if (ingredients.length === 0) return [];
+    const data = await invoke<
       {
         id: number;
         title: string;
@@ -65,8 +78,13 @@ export const spoonacular: RecipeProvider = {
         usedIngredients: { name: string }[];
         missedIngredients: { name: string }[];
       }[]
-    >(`/recipes/findByIngredients?ingredients=${list}&number=15&ranking=2&ignorePantry=true`);
-    if (!data) return [];
+    >('findByIngredients', {
+      ingredients: ingredients.join(','),
+      number: '15',
+      ranking: '2',
+      ignorePantry: 'true',
+    });
+    if (!Array.isArray(data)) return [];
     return data.map((r) =>
       summaryFrom(r.id, r.title, r.image, [
         ...r.usedIngredients.map((i) => i.name),
@@ -76,14 +94,16 @@ export const spoonacular: RecipeProvider = {
   },
 
   async findByCuisine(cuisine) {
-    if (!isSpoonacularConfigured) return [];
     const c = CUISINE[cuisine.toUpperCase()];
     if (!c) return [];
-    const data = await getJSON<{
+    const data = await invoke<{
       results: { id: number; title: string; image: string; extendedIngredients?: SpoonIngredient[] }[];
-    }>(
-      `/recipes/complexSearch?cuisine=${encodeURIComponent(c)}&number=15&addRecipeInformation=true&fillIngredients=true`,
-    );
+    }>('complexSearch', {
+      cuisine: c,
+      number: '15',
+      addRecipeInformation: 'true',
+      fillIngredients: 'true',
+    });
     if (!data?.results) return [];
     return data.results.map((r) =>
       summaryFrom(r.id, r.title, r.image, (r.extendedIngredients ?? []).map((i) => i.name)),
@@ -91,18 +111,17 @@ export const spoonacular: RecipeProvider = {
   },
 
   async getRecipe(id) {
-    if (!isSpoonacularConfigured) return null;
     const realId = id.startsWith(PREFIX) ? id.slice(PREFIX.length) : id;
     if (detailCache.has(realId)) return detailCache.get(realId)!;
 
-    const data = await getJSON<{
+    const data = await invoke<{
       id: number;
       title: string;
       image: string;
       extendedIngredients?: SpoonIngredient[];
       instructions?: string;
       analyzedInstructions?: { steps: { step: string }[] }[];
-    }>(`/recipes/${encodeURIComponent(realId)}/information`);
+    }>('information', {}, realId);
 
     if (!data) {
       detailCache.set(realId, null);
