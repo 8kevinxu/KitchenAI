@@ -54,6 +54,7 @@ export default function RecipeDetailScreen() {
   const [tab, setTab] = useState<'ingredients' | 'directions'>('ingredients');
   const [display, setDisplay] = useState<Display | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'notfound'>('loading');
+  const [groceryAdded, setGroceryAdded] = useState<'idle' | 'added' | 'exists'>('idle');
 
   const saved = useKitchen((s) => (display ? s.savedRecipeIds.includes(display.id) : false));
   const toggleSaved = useKitchen((s) => s.toggleSaved);
@@ -128,13 +129,15 @@ export default function RecipeDetailScreen() {
       addGroceryItem(name);
       added += 1;
     }
-    Alert.alert(
-      added ? 'Added to grocery list' : 'Already on your list',
-      added
-        ? `${added} missing ingredient${added === 1 ? '' : 's'} added to your grocery list.`
-        : 'These missing ingredients are already on your grocery list.',
-    );
+    setGroceryAdded(added ? 'added' : 'exists');
   };
+
+  // Briefly show the "added" confirmation, then return the button to normal.
+  useEffect(() => {
+    if (groceryAdded === 'idle') return;
+    const t = setTimeout(() => setGroceryAdded('idle'), 2500);
+    return () => clearTimeout(t);
+  }, [groceryAdded]);
 
   const onUpdateInventory = () => {
     if (display) consumeIngredients(display.ingredientNames);
@@ -212,17 +215,27 @@ export default function RecipeDetailScreen() {
             ))}
           </View>
 
-          {missingItems.length > 0 && (
-            <TouchableOpacity
-              style={[styles.actionPill, styles.groceryPill]}
-              activeOpacity={0.85}
-              onPress={onAddMissingToGrocery}>
-              <Ionicons name="cart-outline" size={18} color={Colors.text} />
-              <Text style={styles.groceryPillText}>
-                ADD {missingItems.length} MISSING TO GROCERY LIST
-              </Text>
-            </TouchableOpacity>
-          )}
+          {missingItems.length > 0 &&
+            (groceryAdded === 'idle' ? (
+              <TouchableOpacity
+                style={[styles.actionPill, styles.groceryPill]}
+                activeOpacity={0.85}
+                onPress={onAddMissingToGrocery}>
+                <Ionicons name="cart-outline" size={18} color={Colors.text} />
+                <Text style={styles.groceryPillText}>
+                  ADD {missingItems.length} MISSING TO GROCERY LIST
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.actionPill, styles.groceryAddedPill]}>
+                <Ionicons name="checkmark-circle" size={18} color={Colors.greenText} />
+                <Text style={styles.groceryAddedText}>
+                  {groceryAdded === 'added'
+                    ? 'ADDED TO GROCERY LIST'
+                    : 'ALREADY ON YOUR LIST'}
+                </Text>
+              </View>
+            ))}
 
           <TouchableOpacity
             style={styles.sideTab}
@@ -374,6 +387,8 @@ const styles = StyleSheet.create({
   updatePillText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.greenText },
   groceryPill: { backgroundColor: Colors.yellow, marginTop: 8, marginRight: 56 },
   groceryPillText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.text },
+  groceryAddedPill: { backgroundColor: Colors.green, marginTop: 8, marginRight: 56 },
+  groceryAddedText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.greenText },
 
   backToIngredients: { alignSelf: 'center', marginTop: 18 },
   backToIngredientsText: { fontFamily: Fonts.serifItalic, fontSize: 13, color: Colors.muted },
