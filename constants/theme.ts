@@ -17,6 +17,10 @@ export const Colors = {
   card: '#FFFFFF',
   danger: '#C0392B',
   hairline: '#000000',
+  // Freshness scale
+  fresh: '#5B9A4B',
+  soon: '#E0A53A',
+  expiring: '#C0392B',
 };
 
 export const Fonts = {

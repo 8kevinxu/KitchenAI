@@ -5,6 +5,8 @@
 
 export type IngredientStatus = 'ok' | 'expired' | 'out' | 'new';
 
+export type Abundance = 'low' | 'medium' | 'high';
+
 export type Ingredient = {
   id: string;
   name: string;
@@ -12,6 +14,10 @@ export type Ingredient = {
   status?: IngredientStatus;
   /** Staple that has dropped below the user's restock threshold. */
   lowStock?: boolean;
+  /** Days until expiration (<= 0 means expired). Undefined = no expiry tracked. */
+  daysLeft?: number;
+  /** How much of this item is on hand. */
+  abundance?: Abundance;
   category: 'Proteins' | 'Vegetables' | 'Carbs' | 'Seasonings';
 };
 
@@ -33,32 +39,32 @@ export type Recipe = {
 
 export type Cuisine = { name: string; emoji: string };
 
-export const USER = { name: 'AMY VO', email: 'support@aivirtualkitchen.com' };
+export const USER = { name: 'Kevin Xu', email: 'support@aivirtualkitchen.com' };
 
 export const INGREDIENTS: Ingredient[] = [
-  { id: 'steak', name: 'steak', emoji: '🥩', category: 'Proteins' },
-  { id: 'ground-beef', name: 'ground beef', emoji: '🐄', category: 'Proteins' },
-  { id: 'shrimp', name: 'shrimp', emoji: '🦐', category: 'Proteins' },
-  { id: 'pork', name: 'pork', emoji: '🐷', category: 'Proteins' },
-  { id: 'chicken', name: 'chicken', emoji: '🐔', category: 'Proteins' },
-  { id: 'eggs', name: 'eggs', emoji: '🥚', category: 'Proteins' },
+  { id: 'steak', name: 'steak', emoji: '🥩', daysLeft: 4, abundance: 'high', category: 'Proteins' },
+  { id: 'ground-beef', name: 'ground beef', emoji: '🐄', daysLeft: 2, abundance: 'medium', category: 'Proteins' },
+  { id: 'shrimp', name: 'shrimp', emoji: '🦐', daysLeft: 1, abundance: 'low', category: 'Proteins' },
+  { id: 'pork', name: 'pork', emoji: '🐷', daysLeft: 6, abundance: 'medium', category: 'Proteins' },
+  { id: 'chicken', name: 'chicken', emoji: '🐔', daysLeft: 3, abundance: 'high', category: 'Proteins' },
+  { id: 'eggs', name: 'eggs', emoji: '🥚', daysLeft: 12, abundance: 'high', category: 'Proteins' },
 
-  { id: 'lettuce', name: 'lettuce', emoji: '🥬', status: 'expired', category: 'Vegetables' },
-  { id: 'spinach', name: 'spinach', emoji: '🌿', category: 'Vegetables' },
+  { id: 'lettuce', name: 'lettuce', emoji: '🥬', status: 'expired', daysLeft: -2, abundance: 'low', category: 'Vegetables' },
+  { id: 'spinach', name: 'spinach', emoji: '🌿', daysLeft: 2, abundance: 'medium', category: 'Vegetables' },
   { id: 'peas', name: 'peas', emoji: '🫛', status: 'out', category: 'Vegetables' },
   { id: 'carrots', name: 'carrots', emoji: '🥕', status: 'out', category: 'Vegetables' },
   { id: 'green-onion', name: 'green onion', emoji: '🧅', status: 'out', category: 'Vegetables' },
 
-  { id: 'rice', name: 'rice', emoji: '🍚', lowStock: true, category: 'Carbs' },
+  { id: 'rice', name: 'rice', emoji: '🍚', lowStock: true, daysLeft: 120, abundance: 'low', category: 'Carbs' },
 
-  { id: 'oil', name: 'oil', emoji: '🫗', category: 'Seasonings' },
-  { id: 'sesame-oil', name: 'sesame oil', emoji: '🧴', category: 'Seasonings' },
-  { id: 'oyster-sauce', name: 'oyster sauce', emoji: '🍶', category: 'Seasonings' },
-  { id: 'salt', name: 'salt', emoji: '🧂', category: 'Seasonings' },
-  { id: 'chicken-bouillon', name: 'chicken bouillon', emoji: '🧊', category: 'Seasonings' },
-  { id: 'pepper', name: 'pepper', emoji: '🌶️', category: 'Seasonings' },
-  { id: 'soy-sauce', name: 'soy sauce', emoji: '🥢', lowStock: true, category: 'Seasonings' },
-  { id: 'garlic-powder', name: 'garlic powder', emoji: '🧄', category: 'Seasonings' },
+  { id: 'oil', name: 'oil', emoji: '🫗', daysLeft: 200, abundance: 'high', category: 'Seasonings' },
+  { id: 'sesame-oil', name: 'sesame oil', emoji: '🧴', daysLeft: 180, abundance: 'medium', category: 'Seasonings' },
+  { id: 'oyster-sauce', name: 'oyster sauce', emoji: '🍶', daysLeft: 150, abundance: 'medium', category: 'Seasonings' },
+  { id: 'salt', name: 'salt', emoji: '🧂', daysLeft: 999, abundance: 'high', category: 'Seasonings' },
+  { id: 'chicken-bouillon', name: 'chicken bouillon', emoji: '🧊', daysLeft: 300, abundance: 'high', category: 'Seasonings' },
+  { id: 'pepper', name: 'pepper', emoji: '🌶️', daysLeft: 400, abundance: 'high', category: 'Seasonings' },
+  { id: 'soy-sauce', name: 'soy sauce', emoji: '🥢', lowStock: true, daysLeft: 90, abundance: 'low', category: 'Seasonings' },
+  { id: 'garlic-powder', name: 'garlic powder', emoji: '🧄', daysLeft: 250, abundance: 'medium', category: 'Seasonings' },
 ];
 
 export const INGREDIENT_DETAILS: Record<string, IngredientDetail> = {
@@ -76,6 +82,30 @@ export const CATEGORY_ORDER: Ingredient['category'][] = [
   'Carbs',
   'Seasonings',
 ];
+
+export type Freshness = 'fresh' | 'soon' | 'expiring' | 'expired';
+
+/** Bucket an item's days-until-expiry into a freshness level. */
+export function freshnessOf(i: Ingredient): Freshness | null {
+  if (i.status === 'out' || i.daysLeft === undefined) return null;
+  if (i.daysLeft <= 0) return 'expired';
+  if (i.daysLeft <= 2) return 'expiring';
+  if (i.daysLeft <= 5) return 'soon';
+  return 'fresh';
+}
+
+const ABUNDANCE_LEVEL: Record<Abundance, number> = { low: 1, medium: 2, high: 3 };
+export const abundanceLevel = (a?: Abundance) => (a ? ABUNDANCE_LEVEL[a] : 0);
+
+/** Items worth using soon (expiring/expired but still in stock), most urgent first. */
+export function useSoon(inventory: Ingredient[]): Ingredient[] {
+  return inventory
+    .filter((i) => {
+      const f = freshnessOf(i);
+      return f === 'expired' || f === 'expiring' || f === 'soon';
+    })
+    .sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0));
+}
 
 export const CUISINES: Cuisine[] = [
   { name: 'CHINESE', emoji: '🍚' },

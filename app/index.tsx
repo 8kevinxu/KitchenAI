@@ -44,7 +44,7 @@ export default function HomeScreen() {
   return (
     <Screen showProfile scroll={false}>
       <View style={styles.container}>
-        <Text style={styles.greeting}>HELLO, {USER.name}!</Text>
+        <Text style={styles.greeting}>HELLO, {USER.name.toUpperCase()}!</Text>
 
         <View style={styles.actions}>
           {ACTIONS.map((a) => (

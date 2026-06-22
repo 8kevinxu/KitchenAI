@@ -2,16 +2,51 @@ import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts } from '@/constants/theme';
-import { INGREDIENT_DETAILS } from '@/data/kitchen';
+import { freshnessOf, Ingredient, INGREDIENT_DETAILS, INGREDIENTS } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
-function Field({ label, value }: { label: string; value: string }) {
+const SEED_META = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
+
+const ABUNDANCE_WORD = { high: 'Abundant', medium: 'Moderate', low: 'Running low' } as const;
+
+/** Derive the displayed status/expiration from the item's real state, falling
+ *  back to any curated detail (e.g. steak's purchase history). */
+function describe(item: Ingredient | undefined, id?: string) {
+  const curated = id ? INGREDIENT_DETAILS[id] : undefined;
+  const out = item?.status === 'out';
+  const expired = freshnessOf(item ?? ({} as Ingredient)) === 'expired';
+  const daysLeft = item?.daysLeft ?? (id ? SEED_META[id]?.daysLeft : undefined);
+  const abundance = item?.abundance ?? (id ? SEED_META[id]?.abundance : undefined);
+
+  const status = out
+    ? 'Out of stock'
+    : expired
+      ? 'Expired'
+      : (curated?.status ?? (abundance ? ABUNDANCE_WORD[abundance] : 'In stock'));
+
+  const expiration = out
+    ? '—'
+    : daysLeft !== undefined && daysLeft <= 0
+      ? 'Expired'
+      : (curated?.expiration ??
+        (daysLeft !== undefined ? `~${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : '—'));
+
+  return {
+    status,
+    expiration,
+    purchased: curated?.purchased ?? 'no purchase history yet',
+    pastUses: curated?.pastUses ?? 'No past uses recorded.',
+    alert: out || expired,
+  };
+}
+
+function Field({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
     <View style={styles.field}>
       <View style={styles.labelWrap}>
         <Text style={styles.label}>{label}</Text>
       </View>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={[styles.value, alert && { color: Colors.danger }]}>{value}</Text>
     </View>
   );
 }
@@ -19,15 +54,9 @@ function Field({ label, value }: { label: string; value: string }) {
 export default function IngredientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const ingredient = useKitchen((s) => s.inventory.find((i) => i.id === id));
-  const detail =
-    (id && INGREDIENT_DETAILS[id]) || {
-      status: 'In stock',
-      expiration: '—',
-      purchased: 'no purchase history yet',
-      pastUses: 'No past uses recorded.',
-    };
+  const detail = describe(ingredient, id);
 
-  const name = (ingredient?.name ?? 'ingredient').toUpperCase();
+  const name = (ingredient?.name ?? SEED_META[id ?? '']?.name ?? 'ingredient').toUpperCase();
   const spaced = name.split('').join(' ');
 
   return (
@@ -36,9 +65,9 @@ export default function IngredientDetailScreen() {
       <Text style={styles.purchased}>{detail.purchased}</Text>
 
       <View style={styles.fields}>
-        <Field label="Status:" value={detail.status} />
+        <Field label="Status:" value={detail.status} alert={detail.alert} />
         <View style={styles.divider} />
-        <Field label="Expiration Date:" value={detail.expiration} />
+        <Field label="Expiration Date:" value={detail.expiration} alert={detail.alert} />
         <View style={styles.divider} />
         <Field label="Past Uses:" value={detail.pastUses} />
       </View>
