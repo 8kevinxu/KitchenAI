@@ -10,31 +10,46 @@ It's aimed at busy individuals and families, students and young professionals
 living independently, and people with dietary restrictions who need the right
 ingredients on hand.
 
-**Current state:** all screens are built and navigable. State persists locally
-(AsyncStorage) and syncs to a hosted Supabase Postgres backend. The Recipes
-section is live — it recommends real dishes from your inventory, ranked by how
-much of your pantry each uses, pulling from TheMealDB and Spoonacular, and
-browsable by cuisine. Still ahead: user accounts, real camera receipt scanning
-(currently a mock), expiration alerts, and recipe filters (see [Roadmap](#roadmap)).
+**Current state:** all screens are built and navigable, with state persisted
+locally (AsyncStorage) and synced to a hosted Supabase Postgres backend. The
+core features are working end-to-end:
+
+- **Receipt scanning** — the camera captures a receipt and Claude (vision)
+  extracts & normalizes the grocery items; you review them, then they're added
+  to inventory.
+- **Recipe recommendations** — real dishes ranked by how much of your inventory
+  each uses (with missing-ingredient flags), pulling from TheMealDB and
+  Spoonacular, and browsable by cuisine.
+- **Inventory** — freshness + abundance indicators and a "use soon" strip.
+- **Grocery list** — auto-built from out / expired / low-stock items, editable,
+  and shareable.
+
+Still ahead: user accounts, recipe filters, and expiration alerts (see
+[Roadmap](#roadmap)).
 
 ## Screens
 
 | Screen | Description |
 |--------|-------------|
 | **Home** | Greeting + entry points: Inventory, Scan, Recipes, Grocery List |
-| **Inventory** | Ingredients grouped by Proteins / Vegetables / Carbs / Seasonings, with search and `EXPIRED` / `OUT` / `NEW` tags |
+| **Inventory** | Ingredients grouped by Proteins / Vegetables / Carbs / Seasonings, with search, freshness dots, abundance meters, a "use soon" strip, and a summary line |
 | **Ingredient detail** | Status, expiration date, purchase info, and past uses for an item |
 | **Cuisines** | Grid of cuisines to browse recipes by |
-| **Scan** | Camera-style viewfinder for scanning grocery receipts (mock) |
-| **Recipes** | Recommended recipes with "missing ingredient" flags |
+| **Scan** | Live camera capture; sends the receipt to Claude vision to extract groceries |
+| **Scan review** | Confirm / uncheck / remove the parsed items before adding them to inventory |
+| **Recipes** | Recommended recipes ranked by inventory fit, with "missing ingredient" flags |
 | **Recipe detail** | Ingredients ↔ Directions tabs, save recipe, update inventory |
-| **Grocery List** | Auto-generated shopping list of out / expired / low-stock items |
+| **Grocery List** | Auto-built from out / expired / low-stock items; add/remove custom items, select, and share |
 | **Profile** | Avatar and saved recipes |
 
 ## Tech stack
 
-- [Expo](https://expo.dev) (React Native) with [Expo Router](https://docs.expo.dev/router/introduction) file-based routing
-- TypeScript
+- [Expo](https://expo.dev) (React Native) + [Expo Router](https://docs.expo.dev/router/introduction) file-based routing, TypeScript
+- State: [Zustand](https://github.com/pmndrs/zustand) persisted to AsyncStorage
+- Backend: [Supabase](https://supabase.com) (Postgres + Edge Functions) — optional
+- AI: [Claude](https://www.anthropic.com) (Haiku 4.5, vision) for receipt parsing, via an Edge Function
+- Recipes: TheMealDB + Spoonacular
+- Camera: `expo-camera`
 - Fonts: Inria Serif (wordmark / display) + Jost (headings & body)
 
 ## Get started
@@ -80,6 +95,22 @@ supabase secrets set SPOONACULAR_API_KEY=your-key
 (Or deploy via the dashboard's Edge Functions editor + Secrets.) If it isn't
 deployed, the app just uses TheMealDB.
 
+### Receipt scanning (optional)
+
+Receipt scanning runs through a Supabase Edge Function
+([`supabase/functions/scan-receipt`](./supabase/functions/scan-receipt)) that
+calls Claude (vision). Get an API key from [console.anthropic.com](https://console.anthropic.com),
+then deploy the function and set the secret:
+
+```bash
+supabase functions deploy scan-receipt
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The key stays server-side; the app only ever sends the photo. Without it,
+scanning shows a "couldn't scan" message. The model (`claude-haiku-4-5`,
+~half a cent/scan) is a one-line swap inside the function.
+
 ## Project structure
 
 ```
@@ -88,7 +119,6 @@ app/                 # Screens (file-based routes)
   inventory.tsx
   cuisines.tsx
   recipes.tsx
-  scan.tsx
   profile.tsx
   recipe/[id].tsx    # Recipe detail (ingredients + directions)
   ingredient/[id].tsx
@@ -133,9 +163,10 @@ The build is organized around the four key features from the project proposal.
 
 ### 3. Grocery list generator
 - [x] Auto-generated list from out / expired / low-stock items
+- [x] Add / remove custom items; select items and share via the native share sheet
 - [ ] User-set restock thresholds for staples
 - [ ] Fold in ingredients missing from saved/planned recipes
-- [ ] Share / export list
+- [ ] Sync custom grocery items to Supabase (currently local-only)
 
 ### 4. Personalized experience & AI adaptation
 - [x] Profile with saved recipes
