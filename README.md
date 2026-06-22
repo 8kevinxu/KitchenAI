@@ -95,5 +95,6 @@ Current status reflects the UI-only milestone.
 - [ ] Voice-assistant integration (Alexa, Google Assistant)
 
 ### Foundations
-- [ ] Persist inventory, saved recipes, and preferences (local storage / backend)
+- [x] Persist inventory, saved recipes, and grocery state (AsyncStorage + zustand)
+- [ ] Sync to a backend / account
 - [ ] Custom iconography to replace placeholder emoji
