@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { goBack } from '@/lib/nav';
+import { goBack, goHome } from '@/lib/nav';
 import { ReactNode } from 'react';
 import {
   ScrollView,
@@ -53,9 +53,14 @@ export function Screen({
       <View style={styles.header}>
         <View style={styles.headerSide}>
           {showBack && (
-            <TouchableOpacity onPress={goBack} hitSlop={12} accessibilityLabel="Go back">
-              <Ionicons name="arrow-back" size={26} color={Colors.text} />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={goBack} hitSlop={12} accessibilityLabel="Go back">
+                <Ionicons name="arrow-back" size={26} color={Colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={goHome} hitSlop={12} accessibilityLabel="Go home">
+                <Ionicons name="home-outline" size={23} color={Colors.text} />
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -95,8 +100,14 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 8,
   },
-  headerSide: { width: 40, justifyContent: 'center', paddingTop: 6 },
-  headerSideRight: { alignItems: 'flex-end' },
+  headerSide: {
+    width: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 6,
+  },
+  headerSideRight: { justifyContent: 'flex-end' },
   headerCenter: { flex: 1, alignItems: 'center' },
   rule: {
     height: 1,

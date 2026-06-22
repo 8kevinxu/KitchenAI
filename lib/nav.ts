@@ -10,3 +10,6 @@ export const goBack = () => {
   if (router.canGoBack()) router.back();
   else router.replace('/');
 };
+
+/** Jump straight to Home, resetting the stack so Home isn't buried under it. */
+export const goHome = () => router.replace('/');
