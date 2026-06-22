@@ -12,7 +12,13 @@ import { ParsedItem } from '@/lib/scan';
 
 const warn = (e: unknown) => console.warn('[kitchen-store] supabase sync failed', e);
 
-export type GroceryItem = { id: string; name: string; emoji: string };
+export type GroceryItem = {
+  id: string;
+  name: string;
+  emoji: string;
+  /** Title of the recipe this item was added for, if any. */
+  recipe?: string;
+};
 
 type KitchenState = {
   /** Current pantry inventory. */
@@ -35,8 +41,9 @@ type KitchenState = {
   /** An item is selected for the shared list unless explicitly turned off. */
   isGrocerySelected: (id: string) => boolean;
   toggleGrocery: (id: string) => void;
-  /** Add a custom grocery item (selected by default). */
-  addGroceryItem: (name: string) => void;
+  /** Add a custom grocery item (selected by default), optionally tagged with
+   *  the recipe it's for. */
+  addGroceryItem: (name: string, recipe?: string) => void;
   /** Remove an item from the grocery list (dismiss auto item or delete custom). */
   removeGroceryItem: (id: string) => void;
   /** Simulate a receipt scan: add any not-yet-stocked items. Returns count added. */
@@ -90,13 +97,14 @@ export const useKitchen = create<KitchenState>()(
         api.setGroceryChecked(id, next).catch(warn);
       },
 
-      addGroceryItem: (name) => {
+      addGroceryItem: (name, recipe) => {
         const trimmed = name.trim();
         if (!trimmed) return;
         const item: GroceryItem = {
           id: `custom:${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           name: trimmed,
           emoji: '🛒',
+          ...(recipe ? { recipe } : {}),
         };
         set((s) => ({ customGrocery: [...s.customGrocery, item] }));
       },

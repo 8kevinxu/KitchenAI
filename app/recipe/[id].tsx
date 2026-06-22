@@ -126,7 +126,7 @@ export default function RecipeDetailScreen() {
       const key = name.toLowerCase();
       if (existing.has(key)) continue;
       existing.add(key);
-      addGroceryItem(name);
+      addGroceryItem(name, display?.title);
       added += 1;
     }
     setGroceryAdded(added ? 'added' : 'exists');

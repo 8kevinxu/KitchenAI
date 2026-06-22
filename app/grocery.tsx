@@ -13,7 +13,7 @@ import { Colors, Fonts, Radius } from '@/constants/theme';
 import { buildGroceryList, withSeedMeta } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
-type Row = { id: string; name: string; emoji: string };
+type Row = { id: string; name: string; emoji: string; recipe?: string };
 type Group = { reason: string; items: Row[] };
 
 function buildShareText(groups: Group[], isSelected: (id: string) => boolean) {
@@ -22,7 +22,9 @@ function buildShareText(groups: Group[], isSelected: (id: string) => boolean) {
     const picked = group.items.filter((i) => isSelected(i.id));
     if (picked.length === 0) continue;
     lines.push(`${group.reason}:`);
-    picked.forEach((i) => lines.push(`• ${i.name}`));
+    picked.forEach((i) =>
+      lines.push(`• ${i.name}${i.recipe ? ` (for ${i.recipe})` : ''}`),
+    );
     lines.push('');
   }
   return lines.join('\n').trim();
@@ -46,7 +48,17 @@ function GroceryRow({
           {selected && <Ionicons name="checkmark" size={16} color={Colors.text} />}
         </View>
         <Text style={styles.rowEmoji}>{item.emoji}</Text>
-        <Text style={[styles.rowName, !selected && styles.rowNameOff]}>{item.name}</Text>
+        <View style={styles.rowText}>
+          <Text style={[styles.rowName, !selected && styles.rowNameOff]}>{item.name}</Text>
+          {item.recipe && (
+            <View style={styles.recipeTag}>
+              <Ionicons name="restaurant-outline" size={11} color={Colors.muted} />
+              <Text style={styles.recipeTagText} numberOfLines={1}>
+                for {item.recipe}
+              </Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
       <TouchableOpacity onPress={onRemove} hitSlop={10} accessibilityLabel={`Remove ${item.name}`}>
         <Ionicons name="close" size={18} color={Colors.muted} />
@@ -189,8 +201,11 @@ const styles = StyleSheet.create({
   },
   checkboxOn: { backgroundColor: Colors.yellow, borderColor: Colors.yellow },
   rowEmoji: { fontSize: 24 },
+  rowText: { flex: 1 },
   rowName: { fontFamily: Fonts.sans, fontSize: 17, color: Colors.text },
   rowNameOff: { color: Colors.muted },
+  recipeTag: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },
+  recipeTagText: { fontFamily: Fonts.serifItalic, fontSize: 12, color: Colors.muted, flexShrink: 1 },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
