@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/jost';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import { useKitchen } from '@/store/kitchen-store';
@@ -27,6 +28,13 @@ export default function RootLayout() {
     Jost_700Bold,
   });
   const hydrated = useKitchen((s) => s.hasHydrated);
+
+  // Once local state is loaded, reconcile with Supabase in the background.
+  useEffect(() => {
+    if (hydrated) {
+      useKitchen.getState().syncFromServer();
+    }
+  }, [hydrated]);
 
   if (!loaded || !hydrated) {
     return null;

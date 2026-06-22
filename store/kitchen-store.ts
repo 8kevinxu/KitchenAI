@@ -8,6 +8,9 @@ import {
   SAVED_RECIPE_IDS,
   SCANNED_ITEMS,
 } from '@/data/kitchen';
+import * as api from '@/lib/api';
+
+const warn = (e: unknown) => console.warn('[kitchen-store] supabase sync failed', e);
 
 type KitchenState = {
   /** Current pantry inventory. */
@@ -18,6 +21,8 @@ type KitchenState = {
   groceryChecked: Record<string, boolean>;
   /** True once persisted state has been read from disk. */
   hasHydrated: boolean;
+  /** True once we've reconciled with Supabase (or confirmed it's unconfigured). */
+  serverSynced: boolean;
 
   isSaved: (id: string) => boolean;
   toggleSaved: (id: string) => void;
@@ -26,6 +31,8 @@ type KitchenState = {
   addScannedItems: () => number;
   /** Mark a cooked recipe's on-hand ingredients as running low. */
   consumeRecipe: (recipeId: string) => void;
+  /** Pull from Supabase on launch; seed the server if it's empty. */
+  syncFromServer: () => Promise<void>;
   /** Restore the seeded demo inventory and clear progress. */
   resetAll: () => void;
 };
@@ -41,26 +48,32 @@ export const useKitchen = create<KitchenState>()(
     (set, get) => ({
       ...seed(),
       hasHydrated: false,
+      serverSynced: false,
 
       isSaved: (id) => get().savedRecipeIds.includes(id),
 
-      toggleSaved: (id) =>
+      toggleSaved: (id) => {
+        const willSave = !get().savedRecipeIds.includes(id);
         set((s) => ({
-          savedRecipeIds: s.savedRecipeIds.includes(id)
-            ? s.savedRecipeIds.filter((x) => x !== id)
-            : [...s.savedRecipeIds, id],
-        })),
+          savedRecipeIds: willSave
+            ? [...s.savedRecipeIds, id]
+            : s.savedRecipeIds.filter((x) => x !== id),
+        }));
+        api.setSaved(id, willSave).catch(warn);
+      },
 
-      toggleGrocery: (id) =>
-        set((s) => ({
-          groceryChecked: { ...s.groceryChecked, [id]: !s.groceryChecked[id] },
-        })),
+      toggleGrocery: (id) => {
+        const next = !get().groceryChecked[id];
+        set((s) => ({ groceryChecked: { ...s.groceryChecked, [id]: next } }));
+        api.setGroceryChecked(id, next).catch(warn);
+      },
 
       addScannedItems: () => {
         const have = new Set(get().inventory.map((i) => i.id));
-        const additions = SCANNED_ITEMS.filter((i) => !have.has(i.id));
+        const additions = SCANNED_ITEMS.filter((i) => !have.has(i.id)).map((i) => ({ ...i }));
         if (additions.length) {
-          set((s) => ({ inventory: [...s.inventory, ...additions.map((i) => ({ ...i }))] }));
+          set((s) => ({ inventory: [...s.inventory, ...additions] }));
+          api.upsertItems(additions).catch(warn);
         }
         return additions.length;
       },
@@ -72,13 +85,37 @@ export const useKitchen = create<KitchenState>()(
           .flatMap((g) => g.items)
           .join(' ')
           .toLowerCase();
+        const changed: Ingredient[] = [];
         set((s) => ({
-          inventory: s.inventory.map((item) =>
-            text.includes(item.name.toLowerCase())
-              ? { ...item, lowStock: true }
-              : item,
-          ),
+          inventory: s.inventory.map((item) => {
+            if (item.lowStock || !text.includes(item.name.toLowerCase())) return item;
+            const next = { ...item, lowStock: true };
+            changed.push(next);
+            return next;
+          }),
         }));
+        api.upsertItems(changed).catch(warn);
+      },
+
+      syncFromServer: async () => {
+        try {
+          const server = await api.fetchAll();
+          if (server) {
+            // Server has data → it's the source of truth.
+            set({
+              inventory: server.inventory,
+              savedRecipeIds: server.savedRecipeIds,
+              groceryChecked: server.groceryChecked,
+            });
+          } else {
+            // Configured but empty → seed it from the current local state.
+            const { inventory, savedRecipeIds, groceryChecked } = get();
+            await api.seed({ inventory, savedRecipeIds, groceryChecked });
+          }
+        } catch (e) {
+          warn(e);
+        }
+        set({ serverSynced: true });
       },
 
       resetAll: () => set({ ...seed() }),
