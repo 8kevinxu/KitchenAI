@@ -31,22 +31,11 @@ const enrich = (i: Ingredient): Ingredient => ({
   abundance: i.abundance ?? SEED_META[i.id]?.abundance,
 });
 
-// Toggle to compare visual treatments:
-//   'A' = freshness dot + abundance meter (color-forward, minimal text)
-//   'B' = freshness ring + days-left label + abundance pips (explicit)
-const VARIANT: 'A' | 'B' = 'A';
-
 const FRESH_COLOR: Record<Freshness, string> = {
   fresh: Colors.fresh,
   soon: Colors.soon,
   expiring: Colors.expiring,
   expired: Colors.expiring,
-};
-
-const daysLabel = (item: Ingredient) => {
-  if (item.daysLeft === undefined) return '';
-  if (item.daysLeft <= 0) return 'exp';
-  return `${item.daysLeft}d`;
 };
 
 /** Three-segment bar: filled segments = abundance level. */
@@ -63,21 +52,9 @@ function AbundanceMeter({ level }: { level: number }) {
   );
 }
 
-function Pips({ level }: { level: number }) {
-  return (
-    <View style={styles.pips}>
-      {[1, 2, 3].map((n) => (
-        <View key={n} style={[styles.pip, n <= level ? styles.pipOn : styles.pipOff]} />
-      ))}
-    </View>
-  );
-}
-
 function IngredientCell({ item }: { item: Ingredient }) {
   const out = item.status === 'out';
   const fresh = freshnessOf(item);
-  const level = abundanceLevel(item.abundance);
-  const showDays = fresh === 'soon' || fresh === 'expiring' || fresh === 'expired';
 
   return (
     <TouchableOpacity
@@ -88,30 +65,15 @@ function IngredientCell({ item }: { item: Ingredient }) {
         {item.name}
       </Text>
 
-      <View
-        style={[
-          styles.iconWrap,
-          VARIANT === 'B' && fresh && { borderWidth: 2.5, borderColor: FRESH_COLOR[fresh] },
-        ]}>
+      <View style={styles.iconWrap}>
         <Text style={[styles.cellEmoji, out && styles.emojiOut]}>{item.emoji}</Text>
-        {VARIANT === 'A' && fresh && (
-          <View style={[styles.freshDot, { backgroundColor: FRESH_COLOR[fresh] }]} />
-        )}
+        {fresh && <View style={[styles.freshDot, { backgroundColor: FRESH_COLOR[fresh] }]} />}
       </View>
 
       {out ? (
         <Text style={styles.outTag}>OUT</Text>
-      ) : VARIANT === 'A' ? (
-        <AbundanceMeter level={level} />
       ) : (
-        <>
-          {showDays && (
-            <Text style={[styles.daysLabel, { color: FRESH_COLOR[fresh!] }]}>
-              {daysLabel(item)}
-            </Text>
-          )}
-          <Pips level={level} />
-        </>
+        <AbundanceMeter level={abundanceLevel(item.abundance)} />
       )}
     </TouchableOpacity>
   );
@@ -271,11 +233,5 @@ const styles = StyleSheet.create({
   meterOn: { backgroundColor: Colors.text },
   meterOff: { backgroundColor: Colors.field },
 
-  pips: { flexDirection: 'row', gap: 3, marginTop: 4 },
-  pip: { width: 5, height: 5, borderRadius: 3 },
-  pipOn: { backgroundColor: Colors.text },
-  pipOff: { backgroundColor: Colors.field },
-
-  daysLabel: { fontFamily: Fonts.sansBold, fontSize: 10, marginTop: 3 },
   outTag: { fontFamily: Fonts.sansBold, fontSize: 11, color: Colors.danger, marginTop: 4 },
 });
