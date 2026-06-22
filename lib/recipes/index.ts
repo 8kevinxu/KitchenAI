@@ -56,10 +56,43 @@ export async function recommendByCuisine(
   return rankByInventory(merged, inventory, { minUsed: 0 }).slice(0, limit);
 }
 
+/**
+ * Normalize recipe directions from external providers before display. The
+ * screen numbers each step itself, so any numbering the source baked into the
+ * text ("1.", "1)", "Step 1", or stacked "1. Step 1 …") is redundant and gets
+ * stripped. Also splits a single blob that crams several numbered steps onto
+ * one line into separate steps, and drops fragments left empty (e.g. a lone
+ * "Step 1" label). Idempotent and safe on already-clean directions.
+ */
+export function cleanDirections(steps: string[]): string[] {
+  // A leading step marker: "Step 1", a bare "1", with optional trailing
+  // punctuation. Real sentences (starting with a word) never match.
+  const LEADING_MARKER = /^\s*(?:step\s*\d{1,3}|\d{1,3})\s*[.):–-]*\s*/i;
+
+  return steps
+    // Break a blob like "1. Step 1 2. directions" before each inline marker.
+    // (Replace-then-split avoids lookbehind for older JS engines.)
+    .flatMap((s) => s.replace(/\s+(?=(?:step\s+)?\d{1,2}[.)]\s)/gi, '\n').split('\n'))
+    .map((s) => {
+      // Peel off stacked markers ("1. Step 1 …" -> "…") until none remain.
+      let out = s.trim();
+      let prev = '';
+      while (out !== prev) {
+        prev = out;
+        out = out.replace(LEADING_MARKER, '').trim();
+      }
+      return out;
+    })
+    .filter(Boolean);
+}
+
 /** Fetch full detail for a source-prefixed recipe id. */
 export async function getRecipeDetail(id: string): Promise<RecipeDetail | null> {
   const source = id.split(':')[0];
   const provider = PROVIDERS.find((p) => p.source === source);
   if (!provider) return null;
-  return provider.getRecipe(id);
+  const detail = await provider.getRecipe(id);
+  return detail
+    ? { ...detail, instructions: cleanDirections(detail.instructions) }
+    : null;
 }
