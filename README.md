@@ -93,6 +93,8 @@ app/                 # Screens (file-based routes)
   recipe/[id].tsx    # Recipe detail (ingredients + directions)
   ingredient/[id].tsx
   grocery.tsx        # Grocery list
+  scan.tsx           # Camera capture (receipt scanning)
+  scan-review.tsx    # Confirm scanned items before adding to inventory
 components/           # Shared UI (Screen wrapper, Wordmark)
 constants/theme.ts   # Colors, fonts, spacing tokens
 data/kitchen.ts      # Seed inventory, recipes, cuisines + grocery-list builder
@@ -105,20 +107,22 @@ lib/recipes/         # Recipe providers + inventory matcher
   themealdb.ts       #   TheMealDB provider
   spoonacular.ts     #   Spoonacular provider (optional, key-gated)
   index.ts           #   recommendRecipes() / recommendByCuisine() / getRecipeDetail()
+lib/scan.ts          # Receipt-scan invoke helper + parsed-item -> ingredient
 supabase/schema.sql  # Database schema + RLS policies
-supabase/functions/spoonacular/  # Edge Function: server-side Spoonacular proxy
+supabase/functions/spoonacular/   # Edge Function: Spoonacular proxy
+supabase/functions/scan-receipt/  # Edge Function: Claude-vision receipt parser
 ```
 
 ## Roadmap
 
 The build is organized around the four key features from the project proposal.
-Current status reflects the UI-only milestone.
 
 ### 1. AI inventory tracking
-- [x] Inventory UI grouped by category with `OUT` / `EXPIRED` / `NEW` tags
+- [x] Inventory UI grouped by category with freshness + abundance indicators and a "use soon" strip
 - [x] Per-ingredient detail (status, expiration, purchase history, past uses)
-- [ ] Real receipt scanning (expo-camera) + OCR/barcode parsing → automatic updates
-- [ ] Shelf-life estimation and soon-to-expire alerts
+- [x] Real receipt scanning — camera → Claude vision (Haiku 4.5) extracts & normalizes items → review → inventory
+- [ ] Barcode scanning for single items; automatic shelf-life estimation
+- [ ] Soon-to-expire push alerts
 
 ### 2. Recipe recommendations
 - [x] Rank recipes by what's actually in inventory (uses-most / missing-fewest)

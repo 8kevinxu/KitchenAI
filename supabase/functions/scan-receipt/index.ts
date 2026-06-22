@@ -32,7 +32,7 @@ Rules:
   - "Vegetables": vegetables and fruit
   - "Carbs": rice, bread, pasta, grains, cereal, potatoes
   - "Seasonings": oils, sauces, condiments, spices, sugar, salt, baking items
-- Include a short quantity string if the receipt shows one (e.g. "2 lb", "1 ct", "12 oz"); otherwise omit it.
+- Include a short quantity ONLY when the line shows a weight, volume, or count (e.g. "2 lb", "12 oz", "1 ct"). The quantity is NEVER the price — if a line shows only a price and no amount, omit quantity entirely.
 - IGNORE non-food lines: subtotal, tax, total, change, payment/card, store name/address, phone, dates, loyalty/coupons, bags.
 - If you can't read the receipt or it has no grocery items, return an empty items array.`;
 
