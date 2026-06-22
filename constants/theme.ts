@@ -1,53 +1,40 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Design tokens for the Virtual Kitchen app, derived from the Figma prototype.
+ * Palette: warm yellow accents on white, black text, sage-green secondary action.
+ * Type: Inria Serif (wordmark / display) + Jost (a geometric match for the
+ * prototype's Futura) for headings and body.
  */
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
 export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
+  background: '#FFFFFF',
+  text: '#000000',
+  muted: '#6B6B6B',
+  yellow: '#F1D67E',
+  green: '#A8C998',
+  greenText: '#2E4A26',
+  field: '#D9D9D9',
+  profileBg: '#D3D3D3',
+  card: '#FFFFFF',
+  danger: '#C0392B',
+  hairline: '#000000',
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const Fonts = {
+  serif: 'InriaSerif_400Regular',
+  serifItalic: 'InriaSerif_400Regular_Italic',
+  serifBold: 'InriaSerif_700Bold',
+  sans: 'Jost_400Regular',
+  sansMedium: 'Jost_500Medium',
+  sansSemiBold: 'Jost_600SemiBold',
+  sansBold: 'Jost_700Bold',
+};
+
+export const Spacing = {
+  screenX: 24,
+  gap: 16,
+};
+
+export const Radius = {
+  pill: 20,
+  card: 14,
+};
