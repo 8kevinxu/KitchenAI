@@ -1,0 +1,40 @@
+import { rankByInventory } from '@/lib/recipes/match';
+import { theMealDb } from '@/lib/recipes/themealdb';
+import { RankedRecipe, RecipeDetail, RecipeProvider } from '@/lib/recipes/types';
+
+export * from '@/lib/recipes/types';
+
+// Active recipe sources. Add the Spoonacular provider here later — the rest of
+// the app is already source-agnostic.
+const PROVIDERS: RecipeProvider[] = [theMealDb];
+
+/** Recommend dishes the user can cook, ranked by how well they fit inventory. */
+export async function recommendRecipes(
+  inventory: string[],
+  limit = 20,
+): Promise<RankedRecipe[]> {
+  if (inventory.length === 0) return [];
+
+  const results = await Promise.all(
+    PROVIDERS.map((p) => p.findByIngredients(inventory).catch(() => [])),
+  );
+
+  // Merge + dedupe by normalized title (same dish from two sources).
+  const seen = new Set<string>();
+  const merged = results.flat().filter((r) => {
+    const key = r.title.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return rankByInventory(merged, inventory).slice(0, limit);
+}
+
+/** Fetch full detail for a source-prefixed recipe id. */
+export async function getRecipeDetail(id: string): Promise<RecipeDetail | null> {
+  const source = id.split(':')[0];
+  const provider = PROVIDERS.find((p) => p.source === source);
+  if (!provider) return null;
+  return provider.getRecipe(id);
+}

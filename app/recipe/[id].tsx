@@ -1,11 +1,21 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { RECIPES } from '@/data/kitchen';
+import { getRecipeDetail } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
+
+/** Unified shape both local recipes and provider recipes render through. */
+type Display = {
+  id: string;
+  title: string;
+  groups: { heading?: string; items: string[] }[];
+  directions: string[];
+  ingredientNames: string[];
+};
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -19,35 +29,97 @@ function SectionLabel({ children }: { children: string }) {
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const recipe = RECIPES.find((r) => r.id === id) ?? RECIPES[0];
-
   const [tab, setTab] = useState<'ingredients' | 'directions'>('ingredients');
-  const saved = useKitchen((s) => s.savedRecipeIds.includes(recipe.id));
+  const [display, setDisplay] = useState<Display | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'notfound'>('loading');
+
+  const saved = useKitchen((s) => (display ? s.savedRecipeIds.includes(display.id) : false));
   const toggleSaved = useKitchen((s) => s.toggleSaved);
-  const consumeRecipe = useKitchen((s) => s.consumeRecipe);
+  const consumeIngredients = useKitchen((s) => s.consumeIngredients);
+
+  useEffect(() => {
+    let active = true;
+
+    const local = RECIPES.find((r) => r.id === id);
+    if (local) {
+      setDisplay({
+        id: local.id,
+        title: local.title,
+        groups: local.ingredients,
+        directions: local.directions,
+        ingredientNames: local.ingredients.flatMap((g) => g.items),
+      });
+      setStatus('ready');
+      return;
+    }
+
+    setStatus('loading');
+    getRecipeDetail(id)
+      .then((d) => {
+        if (!active) return;
+        if (!d) {
+          setStatus('notfound');
+          return;
+        }
+        setDisplay({
+          id: d.id,
+          title: d.title,
+          groups: [{ items: d.ingredients.map((i) => `${i.measure} ${i.name}`.trim()) }],
+          directions: d.instructions,
+          ingredientNames: d.ingredientNames,
+        });
+        setStatus('ready');
+      })
+      .catch(() => active && setStatus('notfound'));
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   const onUpdateInventory = () => {
-    consumeRecipe(recipe.id);
+    if (display) consumeIngredients(display.ingredientNames);
     Alert.alert(
       'Inventory updated',
       'Ingredients used in this recipe were marked as running low and added to your grocery list.',
     );
   };
 
+  if (status === 'loading') {
+    return (
+      <Screen showBack>
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.text} />
+          <Text style={styles.centerText}>Loading recipe…</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (status === 'notfound' || !display) {
+    return (
+      <Screen showBack>
+        <View style={styles.center}>
+          <Text style={styles.centerText}>Sorry, this recipe couldn’t be loaded.</Text>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen showBack>
-      <Text style={styles.title}>{recipe.title}</Text>
+      <Text style={styles.title}>{display.title}</Text>
 
       {tab === 'ingredients' ? (
         <View style={styles.body}>
           <SectionLabel>Ingredients</SectionLabel>
 
           <View style={styles.ingredientBlock}>
-            {recipe.ingredients.map((group) => (
-              <View key={group.heading} style={styles.group}>
-                <Text style={styles.groupHeading}>{group.heading}</Text>
-                {group.items.map((item) => (
-                  <Text key={item} style={styles.groupItem}>
+            {display.groups.map((group, gi) => (
+              <View key={group.heading ?? gi} style={styles.group}>
+                {group.heading && <Text style={styles.groupHeading}>{group.heading}</Text>}
+                {group.items.map((item, ii) => (
+                  <Text key={`${item}-${ii}`} style={styles.groupItem}>
                     {item}
                   </Text>
                 ))}
@@ -67,7 +139,7 @@ export default function RecipeDetailScreen() {
           <SectionLabel>Directions</SectionLabel>
 
           <View style={styles.directions}>
-            {recipe.directions.map((step, i) => (
+            {display.directions.map((step, i) => (
               <View key={i} style={styles.step}>
                 <Text style={styles.stepNum}>{i + 1}.</Text>
                 <Text style={styles.stepText}>{step}</Text>
@@ -78,7 +150,7 @@ export default function RecipeDetailScreen() {
           <TouchableOpacity
             style={[styles.actionPill, styles.savePill]}
             activeOpacity={0.85}
-            onPress={() => toggleSaved(recipe.id)}>
+            onPress={() => toggleSaved(display.id)}>
             <Text style={styles.savePillText}>
               {saved ? 'RECIPE SAVED' : 'SAVE THIS RECIPE'}
             </Text>
@@ -115,12 +187,20 @@ export default function RecipeDetailScreen() {
 const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.serif,
-    fontSize: 44,
+    fontSize: 38,
     color: Colors.text,
     textAlign: 'center',
     marginTop: 20,
   },
   body: { flex: 1, marginTop: 16 },
+  center: { alignItems: 'center', paddingTop: 100, gap: 14 },
+  centerText: {
+    fontFamily: Fonts.serifItalic,
+    fontSize: 15,
+    color: Colors.muted,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
   sectionLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -131,7 +211,7 @@ const styles = StyleSheet.create({
   dash: { width: 16, height: 1, backgroundColor: Colors.text },
   sectionLabel: { fontFamily: Fonts.sansMedium, fontSize: 20, color: Colors.text },
 
-  ingredientBlock: { paddingLeft: 4 },
+  ingredientBlock: { paddingLeft: 4, paddingRight: 56 },
   group: { marginBottom: 18 },
   groupHeading: {
     fontFamily: Fonts.sansSemiBold,

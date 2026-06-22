@@ -81,6 +81,11 @@ data/kitchen.ts      # Seed inventory, recipes, cuisines + grocery-list builder
 store/kitchen-store.ts  # Zustand store (AsyncStorage + Supabase sync)
 lib/supabase.ts      # Supabase client
 lib/api.ts           # Data layer: store shapes <-> Postgres rows
+lib/recipes/         # Recipe providers + inventory matcher
+  types.ts           #   internal Recipe types + RecipeProvider interface
+  match.ts           #   rank recipes by inventory overlap
+  themealdb.ts       #   TheMealDB provider
+  index.ts           #   recommendRecipes() + getRecipeDetail()
 supabase/schema.sql  # Database schema + RLS policies
 ```
 
@@ -96,9 +101,11 @@ Current status reflects the UI-only milestone.
 - [ ] Shelf-life estimation and soon-to-expire alerts
 
 ### 2. Recipe recommendations
+- [x] Rank recipes by what's actually in inventory (uses-most / missing-fewest)
+- [x] Pull recipes from an external base (TheMealDB), source-agnostic provider layer
 - [x] Recipe list with "missing ingredient" flags + recipe detail
 - [x] Browse by cuisine
-- [ ] Rank recipes by what's actually in inventory (maximize use of on-hand items)
+- [ ] Add Spoonacular as a second provider (drop-in, key required)
 - [ ] Filters: dietary needs, cuisine, craving, meal complexity
 
 ### 3. Grocery list generator

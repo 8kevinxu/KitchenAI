@@ -1,17 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '@/components/wordmark';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { RECIPES, USER } from '@/data/kitchen';
+import { getRecipeDetail } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
+
+type SavedCard = { id: string; title: string; image: string };
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const savedIds = useKitchen((s) => s.savedRecipeIds);
-  const saved = RECIPES.filter((r) => savedIds.includes(r.id));
+  const [saved, setSaved] = useState<SavedCard[]>([]);
+
+  // Resolve saved ids to cards: local recipes instantly, provider recipes via fetch.
+  useEffect(() => {
+    let active = true;
+    Promise.all(
+      savedIds.map(async (sid): Promise<SavedCard | null> => {
+        const local = RECIPES.find((r) => r.id === sid);
+        if (local) return { id: local.id, title: local.title, image: local.image };
+        const d = await getRecipeDetail(sid);
+        return d ? { id: d.id, title: d.title, image: d.image } : null;
+      }),
+    ).then((cards) => {
+      if (active) setSaved(cards.filter((c): c is SavedCard => c !== null));
+    });
+    return () => {
+      active = false;
+    };
+  }, [savedIds]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -56,7 +78,7 @@ export default function ProfileScreen() {
               key={r.id}
               style={styles.card}
               activeOpacity={0.85}
-              onPress={() => router.push(`/recipe/${r.id}`)}>
+              onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: r.id } })}>
               <Image source={{ uri: r.image }} style={styles.cardThumb} contentFit="cover" />
               <Text style={styles.cardTitle}>{r.title}</Text>
             </TouchableOpacity>

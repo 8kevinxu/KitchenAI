@@ -4,7 +4,6 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   Ingredient,
   INGREDIENTS,
-  RECIPES,
   SAVED_RECIPE_IDS,
   SCANNED_ITEMS,
 } from '@/data/kitchen';
@@ -29,8 +28,8 @@ type KitchenState = {
   toggleGrocery: (id: string) => void;
   /** Simulate a receipt scan: add any not-yet-stocked items. Returns count added. */
   addScannedItems: () => number;
-  /** Mark a cooked recipe's on-hand ingredients as running low. */
-  consumeRecipe: (recipeId: string) => void;
+  /** Mark on-hand ingredients used by a cooked recipe as running low. */
+  consumeIngredients: (ingredientNames: string[]) => void;
   /** Pull from Supabase on launch; seed the server if it's empty. */
   syncFromServer: () => Promise<void>;
   /** Restore the seeded demo inventory and clear progress. */
@@ -78,13 +77,8 @@ export const useKitchen = create<KitchenState>()(
         return additions.length;
       },
 
-      consumeRecipe: (recipeId) => {
-        const recipe = RECIPES.find((r) => r.id === recipeId);
-        if (!recipe) return;
-        const text = recipe.ingredients
-          .flatMap((g) => g.items)
-          .join(' ')
-          .toLowerCase();
+      consumeIngredients: (ingredientNames) => {
+        const text = ingredientNames.join(' ').toLowerCase();
         const changed: Ingredient[] = [];
         set((s) => ({
           inventory: s.inventory.map((item) => {
