@@ -1,50 +1,64 @@
-# Welcome to your Expo app 👋
+# Virtual Kitchen 🍳
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An AI-powered kitchen companion that tracks your ingredient inventory, scans
+groceries, and recommends recipes you can actually make with what you have.
+
+This repo currently holds the **initial UI build** — all screens are
+implemented and navigable with mock data. Camera scanning, persistence, and AI
+recipe suggestions are not wired up yet.
+
+## Screens
+
+| Screen | Description |
+|--------|-------------|
+| **Home** | Greeting + entry points: Inventory, Scan, Recipes |
+| **Inventory** | Ingredients grouped by Proteins / Vegetables / Carbs / Seasonings, with search and `EXPIRED` / `OUT` / `NEW` tags |
+| **Ingredient detail** | Status, expiration date, purchase info, and past uses for an item |
+| **Cuisines** | Grid of cuisines to browse recipes by |
+| **Scan** | Camera-style viewfinder for scanning groceries (mock) |
+| **Recipes** | Recommended recipes with "missing ingredient" flags |
+| **Recipe detail** | Ingredients ↔ Directions tabs, save recipe, update inventory |
+| **Profile** | Avatar and saved recipes |
+
+## Tech stack
+
+- [Expo](https://expo.dev) (React Native) with [Expo Router](https://docs.expo.dev/router/introduction) file-based routing
+- TypeScript
+- Fonts: Inria Serif (wordmark / display) + Jost (headings & body)
 
 ## Get started
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then open the app in:
 
-## Learn more
+- **Expo Go** on your phone (scan the QR code) — easiest
+- an iOS simulator (`i`) or Android emulator (`a`)
+- the web build (`w`)
 
-To learn more about developing your project with Expo, look at the following resources:
+## Project structure
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+app/                 # Screens (file-based routes)
+  index.tsx          # Home
+  inventory.tsx
+  cuisines.tsx
+  recipes.tsx
+  scan.tsx
+  profile.tsx
+  recipe/[id].tsx    # Recipe detail (ingredients + directions)
+  ingredient/[id].tsx
+components/           # Shared UI (Screen wrapper, Wordmark)
+constants/theme.ts   # Colors, fonts, spacing tokens
+data/kitchen.ts      # Mock inventory, recipes, cuisines
+```
 
-## Join the community
+## Roadmap
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [ ] Real camera scanning (expo-camera) + receipt/barcode parsing
+- [ ] Persist inventory and saved recipes (local storage / backend)
+- [ ] AI recipe suggestions based on current ingredients
+- [ ] Custom iconography to replace placeholder emoji
