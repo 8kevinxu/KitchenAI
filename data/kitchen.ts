@@ -10,6 +10,8 @@ export type Ingredient = {
   name: string;
   emoji: string;
   status?: IngredientStatus;
+  /** Staple that has dropped below the user's restock threshold. */
+  lowStock?: boolean;
   category: 'Proteins' | 'Vegetables' | 'Carbs' | 'Seasonings';
 };
 
@@ -47,7 +49,7 @@ export const INGREDIENTS: Ingredient[] = [
   { id: 'carrots', name: 'carrots', emoji: '🥕', status: 'out', category: 'Vegetables' },
   { id: 'green-onion', name: 'green onion', emoji: '🧅', status: 'out', category: 'Vegetables' },
 
-  { id: 'rice', name: 'rice', emoji: '🍚', category: 'Carbs' },
+  { id: 'rice', name: 'rice', emoji: '🍚', lowStock: true, category: 'Carbs' },
 
   { id: 'oil', name: 'oil', emoji: '🫗', category: 'Seasonings' },
   { id: 'sesame-oil', name: 'sesame oil', emoji: '🧴', category: 'Seasonings' },
@@ -55,7 +57,7 @@ export const INGREDIENTS: Ingredient[] = [
   { id: 'salt', name: 'salt', emoji: '🧂', category: 'Seasonings' },
   { id: 'chicken-bouillon', name: 'chicken bouillon', emoji: '🧊', category: 'Seasonings' },
   { id: 'pepper', name: 'pepper', emoji: '🌶️', category: 'Seasonings' },
-  { id: 'soy-sauce', name: 'soy sauce', emoji: '🥢', category: 'Seasonings' },
+  { id: 'soy-sauce', name: 'soy sauce', emoji: '🥢', lowStock: true, category: 'Seasonings' },
   { id: 'garlic-powder', name: 'garlic powder', emoji: '🧄', category: 'Seasonings' },
 ];
 
@@ -203,3 +205,26 @@ export const RECIPES: Recipe[] = [
 ];
 
 export const SAVED_RECIPE_IDS = ['beef-fried-rice'];
+
+export type GroceryReason = 'Out of stock' | 'Expired' | 'Running low';
+
+export type GroceryGroup = {
+  reason: GroceryReason;
+  items: Ingredient[];
+};
+
+/**
+ * Auto-generates a shopping list from the current inventory: anything out,
+ * expired, or below its restock threshold. In a real build this would also
+ * fold in ingredients missing from saved/planned recipes.
+ */
+export function buildGroceryList(): GroceryGroup[] {
+  const groups: { reason: GroceryReason; match: (i: Ingredient) => boolean }[] = [
+    { reason: 'Out of stock', match: (i) => i.status === 'out' },
+    { reason: 'Expired', match: (i) => i.status === 'expired' },
+    { reason: 'Running low', match: (i) => !!i.lowStock },
+  ];
+  return groups
+    .map(({ reason, match }) => ({ reason, items: INGREDIENTS.filter(match) }))
+    .filter((g) => g.items.length > 0);
+}

@@ -32,6 +32,12 @@ const ACTIONS: Action[] = [
     width: 128,
     icon: (c, s) => <MaterialCommunityIcons name="chef-hat" color={c} size={s} />,
   },
+  {
+    label: 'GROCERY LIST',
+    href: '/grocery',
+    width: 190,
+    icon: (c, s) => <Ionicons name="cart-outline" color={c} size={s} />,
+  },
 ];
 
 export default function HomeScreen() {
@@ -66,7 +72,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: 110,
   },
-  actions: { marginTop: 110, gap: 24, alignItems: 'center' },
+  actions: { marginTop: 72, gap: 22, alignItems: 'center' },
   pill: {
     height: 48,
     borderRadius: Radius.pill,
