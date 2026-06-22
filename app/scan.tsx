@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Fonts } from '@/constants/theme';
+import { goBack } from '@/lib/nav';
 import { useKitchen } from '@/store/kitchen-store';
 
 /** Mock grocery-scanning screen. A real build would use expo-camera here. */
@@ -28,7 +29,7 @@ export default function ScanScreen() {
   return (
     <View style={styles.root}>
       <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={goBack} hitSlop={12}>
           <Ionicons name="arrow-back" size={26} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.hint}>Scan a receipt or barcode</Text>

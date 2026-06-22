@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '@/components/wordmark';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { RECIPES, USER } from '@/data/kitchen';
+import { goBack } from '@/lib/nav';
 import { getRecipeDetail } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
 
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.headerBand}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+          <TouchableOpacity onPress={goBack} hitSlop={12}>
             <Ionicons name="arrow-back" size={26} color={Colors.text} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/nav';
 import { ReactNode } from 'react';
 import {
   ScrollView,
@@ -52,10 +53,7 @@ export function Screen({
       <View style={styles.header}>
         <View style={styles.headerSide}>
           {showBack && (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              hitSlop={12}
-              accessibilityLabel="Go back">
+            <TouchableOpacity onPress={goBack} hitSlop={12} accessibilityLabel="Go back">
               <Ionicons name="arrow-back" size={26} color={Colors.text} />
             </TouchableOpacity>
           )}
