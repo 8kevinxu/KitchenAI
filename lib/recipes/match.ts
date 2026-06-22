@@ -3,7 +3,7 @@ import { RankedRecipe, RecipeSummary } from '@/lib/recipes/types';
 /** Generic words that shouldn't, on their own, count as an ingredient match
  *  (otherwise "soy sauce" would match "oyster sauce" via "sauce"). */
 const STOPWORDS = new Set([
-  'sauce', 'oil', 'powder', 'fresh', 'ground', 'dried', 'large', 'small',
+  'sauce', 'powder', 'fresh', 'ground', 'dried', 'large', 'small',
   'sea', 'extra', 'virgin', 'of', 'and', 'the', 'to', 'taste', 'a', 'an',
   'whole', 'chopped', 'diced', 'sliced', 'minced', 'raw', 'cooked', 'hot',
   'cold', 'warm', 'plain', 'free', 'low', 'light',
@@ -34,6 +34,16 @@ function isSatisfied(ingredient: string, inventoryTokenSets: Set<string>[]) {
     for (const t of inv) if (ing.has(t)) return true;
     return false;
   });
+}
+
+/**
+ * Build a predicate that tells whether a single recipe ingredient is satisfied
+ * by the given inventory. Uses the same token matching as the ranker, so the
+ * per-ingredient indicators stay consistent with recipe ranking.
+ */
+export function inventoryMatcher(inventory: string[]): (ingredient: string) => boolean {
+  const invSets = inventory.map(tokens).filter((s) => s.size > 0);
+  return (ingredient: string) => isSatisfied(ingredient, invSets);
 }
 
 /**

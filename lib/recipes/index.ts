@@ -1,4 +1,6 @@
 import { rankByInventory } from '@/lib/recipes/match';
+
+export { inventoryMatcher } from '@/lib/recipes/match';
 import { spoonacular } from '@/lib/recipes/spoonacular';
 import { theMealDb } from '@/lib/recipes/themealdb';
 import { RankedRecipe, RecipeDetail, RecipeProvider } from '@/lib/recipes/types';

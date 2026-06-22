@@ -1,11 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { RECIPES } from '@/data/kitchen';
-import { getRecipeDetail } from '@/lib/recipes';
+import { getRecipeDetail, inventoryMatcher } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
 
 /** Unified shape both local recipes and provider recipes render through. */
@@ -36,6 +36,20 @@ export default function RecipeDetailScreen() {
   const saved = useKitchen((s) => (display ? s.savedRecipeIds.includes(display.id) : false));
   const toggleSaved = useKitchen((s) => s.toggleSaved);
   const consumeIngredients = useKitchen((s) => s.consumeIngredients);
+  const inventory = useKitchen((s) => s.inventory);
+
+  const hasIngredient = useMemo(
+    () => inventoryMatcher(inventory.map((i) => i.name)),
+    [inventory],
+  );
+  const haveCount = useMemo(
+    () => (display ? display.groups.flatMap((g) => g.items).filter(hasIngredient).length : 0),
+    [display, hasIngredient],
+  );
+  const totalCount = useMemo(
+    () => (display ? display.groups.flatMap((g) => g.items).length : 0),
+    [display],
+  );
 
   useEffect(() => {
     let active = true;
@@ -114,15 +128,41 @@ export default function RecipeDetailScreen() {
         <View style={styles.body}>
           <SectionLabel>Ingredients</SectionLabel>
 
+          <View style={styles.legend}>
+            <Ionicons name="checkmark-circle" size={14} color={Colors.fresh} />
+            <Text style={styles.legendText}>in your kitchen</Text>
+            <Ionicons
+              name="add-circle-outline"
+              size={14}
+              color={Colors.expiring}
+              style={{ marginLeft: 12 }}
+            />
+            <Text style={styles.legendText}>need to buy</Text>
+            <Text style={styles.haveCount}>
+              {haveCount}/{totalCount}
+            </Text>
+          </View>
+
           <View style={styles.ingredientBlock}>
             {display.groups.map((group, gi) => (
               <View key={group.heading ?? gi} style={styles.group}>
                 {group.heading && <Text style={styles.groupHeading}>{group.heading}</Text>}
-                {group.items.map((item, ii) => (
-                  <Text key={`${item}-${ii}`} style={styles.groupItem}>
-                    {item}
-                  </Text>
-                ))}
+                {group.items.map((item, ii) => {
+                  const have = hasIngredient(item);
+                  return (
+                    <View key={`${item}-${ii}`} style={styles.itemRow}>
+                      <Ionicons
+                        name={have ? 'checkmark-circle' : 'add-circle-outline'}
+                        size={18}
+                        color={have ? Colors.fresh : Colors.expiring}
+                        style={styles.itemIcon}
+                      />
+                      <Text style={[styles.groupItem, !have && styles.groupItemMissing]}>
+                        {item}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             ))}
           </View>
@@ -211,6 +251,9 @@ const styles = StyleSheet.create({
   dash: { width: 16, height: 1, backgroundColor: Colors.text },
   sectionLabel: { fontFamily: Fonts.sansMedium, fontSize: 20, color: Colors.text },
 
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
+  legendText: { fontFamily: Fonts.sans, fontSize: 12, color: Colors.muted },
+  haveCount: { fontFamily: Fonts.sansSemiBold, fontSize: 12, color: Colors.text, marginLeft: 'auto' },
   ingredientBlock: { paddingLeft: 4, paddingRight: 56 },
   group: { marginBottom: 18 },
   groupHeading: {
@@ -218,15 +261,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Colors.text,
     textDecorationLine: 'underline',
-    marginBottom: 4,
+    marginBottom: 6,
   },
+  itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
+  itemIcon: { marginTop: 4 },
   groupItem: {
+    flex: 1,
     fontFamily: Fonts.sans,
     fontSize: 17,
     color: Colors.text,
-    lineHeight: 28,
-    paddingLeft: 8,
+    lineHeight: 24,
   },
+  groupItemMissing: { color: Colors.muted },
 
   sideTab: {
     position: 'absolute',
