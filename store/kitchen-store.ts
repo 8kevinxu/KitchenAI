@@ -31,6 +31,8 @@ type KitchenState = {
   customGrocery: GroceryItem[];
   /** Ids of auto-generated grocery items the user removed from the list. */
   dismissedGrocery: string[];
+  /** Ids of items the user dismissed from the expiry alert (acknowledged, keeping). */
+  dismissedExpiry: string[];
   /** True once persisted state has been read from disk. */
   hasHydrated: boolean;
   /** True once we've reconciled with Supabase (or confirmed it's unconfigured). */
@@ -55,6 +57,11 @@ type KitchenState = {
   addInventoryItems: (items: Ingredient[]) => void;
   /** Mark on-hand ingredients used by a cooked recipe as running low. */
   consumeIngredients: (ingredientNames: string[]) => void;
+  /** Mark a single item as used up / tossed — goes out of stock (and onto the
+   *  grocery list as out). Clears it from the expiry alert. */
+  markUsedUp: (id: string) => void;
+  /** Acknowledge an expiring item without changing stock (hide the nudge). */
+  dismissExpiringAlert: (id: string) => void;
   /** Pull from Supabase on launch; seed the server if it's empty. */
   syncFromServer: () => Promise<void>;
   /** Restore the seeded demo inventory and clear progress. */
@@ -67,6 +74,7 @@ const seed = () => ({
   groceryChecked: {} as Record<string, boolean>,
   customGrocery: [] as GroceryItem[],
   dismissedGrocery: [] as string[],
+  dismissedExpiry: [] as string[],
 });
 
 export const useKitchen = create<KitchenState>()(
@@ -163,6 +171,23 @@ export const useKitchen = create<KitchenState>()(
         api.upsertItems(changed).catch(warn);
       },
 
+      markUsedUp: (id) => {
+        let changed: Ingredient | undefined;
+        set((s) => ({
+          inventory: s.inventory.map((it) => {
+            if (it.id !== id) return it;
+            changed = { ...it, status: 'out' as const, lowStock: false };
+            return changed;
+          }),
+          // It's been handled, so drop any lingering "keep" dismissal.
+          dismissedExpiry: s.dismissedExpiry.filter((x) => x !== id),
+        }));
+        if (changed) api.upsertItems([changed]).catch(warn);
+      },
+
+      dismissExpiringAlert: (id) =>
+        set((s) => ({ dismissedExpiry: [...new Set([...s.dismissedExpiry, id])] })),
+
       syncFromServer: async () => {
         try {
           const server = await api.fetchAll();
@@ -199,12 +224,20 @@ export const useKitchen = create<KitchenState>()(
             }
           : AsyncStorage,
       ),
-      partialize: ({ inventory, savedRecipeIds, groceryChecked, customGrocery, dismissedGrocery }) => ({
+      partialize: ({
         inventory,
         savedRecipeIds,
         groceryChecked,
         customGrocery,
         dismissedGrocery,
+        dismissedExpiry,
+      }) => ({
+        inventory,
+        savedRecipeIds,
+        groceryChecked,
+        customGrocery,
+        dismissedGrocery,
+        dismissedExpiry,
       }),
       onRehydrateStorage: () => () => {
         useKitchen.setState({ hasHydrated: true });

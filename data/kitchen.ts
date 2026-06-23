@@ -107,6 +107,25 @@ export const withSeedMeta = (i: Ingredient): Ingredient => ({
   abundance: i.abundance ?? SEED_META[i.id]?.abundance,
 });
 
+/** Human phrase for an item's time-to-expiry, e.g. "expired 2d ago", "1 day left". */
+export function expiryLabel(i: Ingredient): string {
+  const d = i.daysLeft;
+  if (d === undefined) return '';
+  if (d <= -1) return `expired ${Math.abs(d)}d ago`;
+  if (d === 0) return 'expires today';
+  if (d === 1) return '1 day left';
+  return `${d} days left`;
+}
+
+/** In-stock items that need attention now: already expired or expiring (≤2 days). */
+export const needsAttention = (i: Ingredient): boolean => {
+  const f = freshnessOf(i);
+  return f === 'expired' || f === 'expiring';
+};
+
+/** In-stock items coming up (3–5 days) — worth a heads-up, not yet urgent. */
+export const comingUp = (i: Ingredient): boolean => freshnessOf(i) === 'soon';
+
 /** Items worth using soon (expiring/expired but still in stock), most urgent first. */
 export function useSoon(inventory: Ingredient[]): Ingredient[] {
   return inventory
