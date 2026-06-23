@@ -22,7 +22,7 @@ const CHIPS: { key: ChipKey; label: string }[] = [
   { key: 'vegan', label: 'Vegan' },
   { key: 'glutenFree', label: 'Gluten-free' },
   { key: 'dairyFree', label: 'Dairy-free' },
-  { key: 'quick', label: 'Quick · ≤30m' },
+  { key: 'quick', label: 'Quick' },
 ];
 
 /** Turn the selected chips into provider filters. */
