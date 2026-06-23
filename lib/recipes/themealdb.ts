@@ -1,4 +1,4 @@
-import { RecipeDetail, RecipeProvider, RecipeSummary } from '@/lib/recipes/types';
+import { hasActiveFilters, RecipeDetail, RecipeProvider, RecipeSummary } from '@/lib/recipes/types';
 
 const BASE = 'https://www.themealdb.com/api/json/v1/1';
 const PREFIX = 'themealdb:';
@@ -79,7 +79,11 @@ function toDetail(meal: LookupMeal): RecipeDetail {
 export const theMealDb: RecipeProvider = {
   source: 'themealdb',
 
-  async findByIngredients(ingredients) {
+  async findByIngredients(ingredients, filters) {
+    // The free tier can't enforce diet/intolerance/time constraints, so sit out
+    // filtered searches rather than risk surfacing a non-compliant recipe.
+    if (hasActiveFilters(filters)) return [];
+
     // 1. Probe each ingredient; tally how many of the user's items hit each meal.
     const hits = new Map<string, { meal: FilterMeal; count: number }>();
     const probes = ingredients.slice(0, MAX_PROBES);
@@ -111,7 +115,9 @@ export const theMealDb: RecipeProvider = {
     return detailed.filter((r): r is RecipeDetail => r !== null);
   },
 
-  async findByCuisine(cuisine) {
+  async findByCuisine(cuisine, filters) {
+    if (hasActiveFilters(filters)) return [];
+
     const area = CUISINE_AREA[cuisine.toUpperCase()];
     if (!area) return [];
 

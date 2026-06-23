@@ -37,7 +37,7 @@ Still ahead: user accounts, recipe filters, and expiration alerts (see
 | **Cuisines** | Grid of cuisines to browse recipes by |
 | **Scan** | Live camera capture; sends the receipt to Claude vision to extract groceries |
 | **Scan review** | Confirm / uncheck / remove the parsed items before adding them to inventory |
-| **Recipes** | Recommended recipes ranked by inventory fit, with "missing ingredient" flags |
+| **Recipes** | Recommended recipes ranked by inventory fit, with "missing ingredient" flags and dietary / time filter chips |
 | **Recipe detail** | Ingredients ↔ Directions tabs, save recipe, update inventory |
 | **Grocery List** | Auto-built from out / expired / low-stock items; add/remove custom items, select, and share |
 | **Profile** | Avatar and saved recipes |
@@ -159,7 +159,8 @@ The build is organized around the four key features from the project proposal.
 - [x] Pull recipes from external bases (TheMealDB + Spoonacular), source-agnostic layer
 - [x] Recipe list with "missing ingredient" flags + recipe detail
 - [x] Browse by cuisine (each cuisine returns on-cuisine recipes, ranked by inventory)
-- [ ] Filters: dietary needs, craving, meal complexity
+- [x] Filters: dietary needs (vegetarian/vegan), intolerances (gluten/dairy), quick (≤30 min)
+- [ ] More filters: craving, additional intolerances, calorie/nutrition targets
 
 ### 3. Grocery list generator
 - [x] Auto-generated list from out / expired / low-stock items

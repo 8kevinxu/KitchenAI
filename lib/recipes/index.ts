@@ -3,7 +3,14 @@ import { rankByInventory } from '@/lib/recipes/match';
 export { inventoryMatcher } from '@/lib/recipes/match';
 import { spoonacular } from '@/lib/recipes/spoonacular';
 import { theMealDb } from '@/lib/recipes/themealdb';
-import { RankedRecipe, RecipeDetail, RecipeProvider } from '@/lib/recipes/types';
+import {
+  hasActiveFilters,
+  RankedRecipe,
+  RecipeDetail,
+  RecipeFilters,
+  RecipeProvider,
+  RecipeSummary,
+} from '@/lib/recipes/types';
 
 export * from '@/lib/recipes/types';
 
@@ -11,27 +18,34 @@ export * from '@/lib/recipes/types';
 // matcher and screens are unchanged. Spoonacular no-ops if its key is unset.
 const PROVIDERS: RecipeProvider[] = [theMealDb, spoonacular];
 
-/** Recommend dishes the user can cook, ranked by how well they fit inventory. */
-export async function recommendRecipes(
-  inventory: string[],
-  limit = 20,
-): Promise<RankedRecipe[]> {
-  if (inventory.length === 0) return [];
-
-  const results = await Promise.all(
-    PROVIDERS.map((p) => p.findByIngredients(inventory).catch(() => [])),
-  );
-
-  // Merge + dedupe by normalized title (same dish from two sources).
+/** Merge results from several providers, de-duping the same dish by title. */
+function dedupeByTitle(lists: RecipeSummary[][]): RecipeSummary[] {
   const seen = new Set<string>();
-  const merged = results.flat().filter((r) => {
+  return lists.flat().filter((r) => {
     const key = r.title.trim().toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+}
 
-  return rankByInventory(merged, inventory).slice(0, limit);
+/** Recommend dishes the user can cook, ranked by how well they fit inventory. */
+export async function recommendRecipes(
+  inventory: string[],
+  limit = 20,
+  filters?: RecipeFilters,
+): Promise<RankedRecipe[]> {
+  if (inventory.length === 0) return [];
+
+  const results = await Promise.all(
+    PROVIDERS.map((p) => p.findByIngredients(inventory, filters).catch(() => [])),
+  );
+
+  // With a dietary filter active, be more forgiving about inventory overlap —
+  // the constraint is the primary intent, so don't drop a compliant dish just
+  // because it only uses one on-hand ingredient.
+  const minUsed = hasActiveFilters(filters) ? 1 : 2;
+  return rankByInventory(dedupeByTitle(results), inventory, { minUsed }).slice(0, limit);
 }
 
 /** Recipes for a specific cuisine, ordered by how well they fit the inventory
@@ -40,20 +54,13 @@ export async function recommendByCuisine(
   cuisine: string,
   inventory: string[],
   limit = 30,
+  filters?: RecipeFilters,
 ): Promise<RankedRecipe[]> {
   const results = await Promise.all(
-    PROVIDERS.map((p) => p.findByCuisine(cuisine).catch(() => [])),
+    PROVIDERS.map((p) => p.findByCuisine(cuisine, filters).catch(() => [])),
   );
 
-  const seen = new Set<string>();
-  const merged = results.flat().filter((r) => {
-    const key = r.title.trim().toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  return rankByInventory(merged, inventory, { minUsed: 0 }).slice(0, limit);
+  return rankByInventory(dedupeByTitle(results), inventory, { minUsed: 0 }).slice(0, limit);
 }
 
 /**

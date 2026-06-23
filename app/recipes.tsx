@@ -1,37 +1,87 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { recommendByCuisine, recommendRecipes, RankedRecipe } from '@/lib/recipes';
+import { recommendByCuisine, recommendRecipes, RankedRecipe, RecipeFilters } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
+
+type ChipKey = 'vegetarian' | 'vegan' | 'glutenFree' | 'dairyFree' | 'quick';
+
+const CHIPS: { key: ChipKey; label: string }[] = [
+  { key: 'vegetarian', label: 'Vegetarian' },
+  { key: 'vegan', label: 'Vegan' },
+  { key: 'glutenFree', label: 'Gluten-free' },
+  { key: 'dairyFree', label: 'Dairy-free' },
+  { key: 'quick', label: 'Quick · ≤30m' },
+];
+
+/** Turn the selected chips into provider filters. */
+function chipsToFilters(active: Set<ChipKey>): RecipeFilters {
+  const f: RecipeFilters = {};
+  if (active.has('vegan')) f.diet = 'vegan';
+  else if (active.has('vegetarian')) f.diet = 'vegetarian';
+  const intolerances: string[] = [];
+  if (active.has('glutenFree')) intolerances.push('gluten');
+  if (active.has('dairyFree')) intolerances.push('dairy');
+  if (intolerances.length) f.intolerances = intolerances;
+  if (active.has('quick')) f.maxReadyTime = 30;
+  return f;
+}
 
 export default function RecipesScreen() {
   const { cuisine } = useLocalSearchParams<{ cuisine?: string }>();
   const inventory = useKitchen((s) => s.inventory);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [recipes, setRecipes] = useState<RankedRecipe[]>([]);
+  const [active, setActive] = useState<Set<ChipKey>>(new Set());
+
+  const filters = useMemo(() => chipsToFilters(active), [active]);
+  const filtered = active.size > 0;
+  // Stable dependency so the effect re-runs only when filters actually change.
+  const filterKey = JSON.stringify(filters);
+
+  const toggleChip = (key: ChipKey) =>
+    setActive((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        // Vegetarian and Vegan are mutually exclusive.
+        if (key === 'vegetarian') next.delete('vegan');
+        if (key === 'vegan') next.delete('vegetarian');
+      }
+      return next;
+    });
 
   useEffect(() => {
-    let active = true;
+    let isActive = true;
     setStatus('loading');
     const names = inventory.map((i) => i.name);
     const request = cuisine
-      ? recommendByCuisine(cuisine, names)
-      : recommendRecipes(names);
+      ? recommendByCuisine(cuisine, names, 30, filters)
+      : recommendRecipes(names, 20, filters);
     request
       .then((r) => {
-        if (!active) return;
+        if (!isActive) return;
         setRecipes(r);
         setStatus('ready');
       })
-      .catch(() => active && setStatus('error'));
+      .catch(() => isActive && setStatus('error'));
     return () => {
-      active = false;
+      isActive = false;
     };
-  }, [inventory, cuisine]);
+  }, [inventory, cuisine, filterKey]);
 
   const title = cuisine
     ? `${cuisine} dishes you can make with your ingredients`
@@ -40,6 +90,26 @@ export default function RecipesScreen() {
   return (
     <Screen showBack>
       <Text style={styles.intro}>{title}</Text>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipBar}
+        style={styles.chipScroll}>
+        {CHIPS.map(({ key, label }) => {
+          const on = active.has(key);
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[styles.chip, on && styles.chipOn]}
+              activeOpacity={0.8}
+              onPress={() => toggleChip(key)}>
+              {on && <Ionicons name="checkmark" size={13} color={Colors.text} />}
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {status === 'ready' && recipes.length > 0 && (
         <View style={styles.legend}>
@@ -66,9 +136,11 @@ export default function RecipesScreen() {
       {status === 'ready' && recipes.length === 0 && (
         <View style={styles.center}>
           <Text style={styles.centerText}>
-            {cuisine
-              ? `No ${cuisine.toLowerCase()} recipes in our recipe base yet — more are coming as we add sources.`
-              : 'No matches yet — add a few more ingredients to your inventory.'}
+            {filtered
+              ? 'No recipes match these filters — try removing one.'
+              : cuisine
+                ? `No ${cuisine.toLowerCase()} recipes in our recipe base yet — more are coming as we add sources.`
+                : 'No matches yet — add a few more ingredients to your inventory.'}
           </Text>
         </View>
       )}
@@ -112,6 +184,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
   },
+  chipScroll: { flexGrow: 0, marginBottom: 14 },
+  chipBar: { gap: 8, paddingRight: 8 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.field,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    height: 32,
+  },
+  chipOn: { backgroundColor: Colors.yellow, borderColor: Colors.yellow },
+  chipText: { fontFamily: Fonts.sansMedium, fontSize: 13, color: Colors.muted },
+  chipTextOn: { color: Colors.text },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 16 },
   legendText: { fontFamily: Fonts.serifItalic, fontSize: 11, color: Colors.text },
   center: { alignItems: 'center', paddingTop: 80, gap: 14 },

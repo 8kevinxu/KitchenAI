@@ -1,5 +1,11 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
-import { RecipeDetail, RecipeProvider, RecipeSummary } from '@/lib/recipes/types';
+import {
+  hasActiveFilters,
+  RecipeDetail,
+  RecipeFilters,
+  RecipeProvider,
+  RecipeSummary,
+} from '@/lib/recipes/types';
 
 const PREFIX = 'spoonacular:';
 
@@ -48,6 +54,15 @@ async function invoke<T>(
   }
 }
 
+/** Translate app filters into Spoonacular query params. */
+function filterParams(f?: RecipeFilters): Record<string, string> {
+  const p: Record<string, string> = {};
+  if (f?.diet) p.diet = f.diet;
+  if (f?.intolerances?.length) p.intolerances = f.intolerances.join(',');
+  if (f?.maxReadyTime) p.maxReadyTime = String(f.maxReadyTime);
+  return p;
+}
+
 const measureOf = (i: SpoonIngredient) => {
   const m = i.measures?.us;
   if (!m) return '';
@@ -68,8 +83,30 @@ const summaryFrom = (id: number, title: string, image: string, names: string[]):
 export const spoonacular: RecipeProvider = {
   source: 'spoonacular',
 
-  async findByIngredients(ingredients) {
+  async findByIngredients(ingredients, filters) {
     if (ingredients.length === 0) return [];
+
+    // The findByIngredients endpoint can't apply diet/intolerance/time
+    // filters, so when any are active switch to complexSearch with
+    // includeIngredients (still inventory-aware) which can.
+    if (hasActiveFilters(filters)) {
+      const data = await invoke<{
+        results: { id: number; title: string; image: string; extendedIngredients?: SpoonIngredient[] }[];
+      }>('complexSearch', {
+        includeIngredients: ingredients.slice(0, 8).join(','),
+        number: '15',
+        sort: 'max-used-ingredients',
+        addRecipeInformation: 'true',
+        fillIngredients: 'true',
+        ignorePantry: 'true',
+        ...filterParams(filters),
+      });
+      if (!data?.results) return [];
+      return data.results.map((r) =>
+        summaryFrom(r.id, r.title, r.image, (r.extendedIngredients ?? []).map((i) => i.name)),
+      );
+    }
+
     const data = await invoke<
       {
         id: number;
@@ -93,7 +130,7 @@ export const spoonacular: RecipeProvider = {
     );
   },
 
-  async findByCuisine(cuisine) {
+  async findByCuisine(cuisine, filters) {
     const c = CUISINE[cuisine.toUpperCase()];
     if (!c) return [];
     const data = await invoke<{
@@ -103,6 +140,7 @@ export const spoonacular: RecipeProvider = {
       number: '15',
       addRecipeInformation: 'true',
       fillIngredients: 'true',
+      ...filterParams(filters),
     });
     if (!data?.results) return [];
     return data.results.map((r) =>
