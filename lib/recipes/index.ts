@@ -1,4 +1,4 @@
-import { rankByInventory } from '@/lib/recipes/match';
+import { inventoryMatcher, rankByInventory } from '@/lib/recipes/match';
 
 export { inventoryMatcher } from '@/lib/recipes/match';
 import { spoonacular } from '@/lib/recipes/spoonacular';
@@ -46,6 +46,36 @@ export async function recommendRecipes(
   // because it only uses one on-hand ingredient.
   const minUsed = hasActiveFilters(filters) ? 1 : 2;
   return rankByInventory(dedupeByTitle(results), inventory, { minUsed }).slice(0, limit);
+}
+
+/**
+ * Recipes that can be assembled from a target set of ingredients (e.g. the
+ * items about to expire). Queries providers with the targets so results are
+ * biased to use them, keeps only recipes that use at least one target, and
+ * ranks by how many targets each uses (then overall inventory fit). Returns an
+ * empty list when nothing matches — the caller shows a "no recipes" state.
+ */
+export async function recommendUsingIngredients(
+  targets: string[],
+  inventory: string[],
+  limit = 20,
+  filters?: RecipeFilters,
+): Promise<RankedRecipe[]> {
+  if (targets.length === 0) return [];
+
+  const results = await Promise.all(
+    PROVIDERS.map((p) => p.findByIngredients(targets, filters).catch(() => [])),
+  );
+  const ranked = rankByInventory(dedupeByTitle(results), inventory, { minUsed: 0 });
+
+  return ranked
+    .map((r) => {
+      const recipeHas = inventoryMatcher(r.ingredientNames);
+      return { ...r, usedExpiring: targets.filter((t) => recipeHas(t)) };
+    })
+    .filter((r) => r.usedExpiring.length > 0)
+    .sort((a, b) => b.usedExpiring.length - a.usedExpiring.length || b.score - a.score)
+    .slice(0, limit);
 }
 
 /** Recipes for a specific cuisine, ordered by how well they fit the inventory

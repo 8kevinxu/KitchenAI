@@ -34,7 +34,7 @@ Still ahead: user accounts, recipe filters, and expiration alerts (see
 | **Home** | Greeting, a soon-to-expire alert banner, + entry points: Inventory, Scan, Recipes, Grocery List |
 | **Inventory** | Ingredients grouped by Proteins / Vegetables / Carbs / Seasonings, with search, freshness dots, abundance meters, a "use soon" strip, and a summary line |
 | **Ingredient detail** | Status, expiration date, purchase info, and past uses for an item |
-| **Use it up** | Soon-to-expire / expired items to act on — cook with it, mark used up (→ grocery), or dismiss |
+| **Use it up** | Soon-to-expire / expired items to act on — cook with it, mark used up (→ grocery), dismiss, or bundle them all to find recipes that use them |
 | **Cuisines** | Grid of cuisines to browse recipes by |
 | **Scan** | Live camera capture; sends the receipt to Claude vision to extract groceries |
 | **Scan review** | Confirm / uncheck / remove the parsed items before adding them to inventory |
@@ -153,6 +153,7 @@ The build is organized around the four key features from the project proposal.
 - [x] Per-ingredient detail (status, expiration, purchase history, past uses)
 - [x] Real receipt scanning — camera → Claude vision (Haiku 4.5) extracts & normalizes items → review → inventory
 - [x] Expiration alerts — home banner + "use it up" review flow (cook / mark used-up → grocery / dismiss)
+- [x] Cook-from-expiring — bundle the expiring items and surface recipes that use them (or "no recipes")
 - [ ] Barcode scanning for single items; automatic shelf-life estimation
 - [ ] Push notifications for soon-to-expire items (needs a dev build)
 

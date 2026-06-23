@@ -12,7 +12,14 @@ import {
 } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { recommendByCuisine, recommendRecipes, RankedRecipe, RecipeFilters } from '@/lib/recipes';
+import {
+  recommendByCuisine,
+  recommendRecipes,
+  recommendUsingIngredients,
+  RankedRecipe,
+  RecipeFilters,
+} from '@/lib/recipes';
+import { comingUp, needsAttention, withSeedMeta } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
 type ChipKey = 'vegetarian' | 'vegan' | 'glutenFree' | 'dairyFree' | 'quick';
@@ -39,11 +46,25 @@ function chipsToFilters(active: Set<ChipKey>): RecipeFilters {
 }
 
 export default function RecipesScreen() {
-  const { cuisine } = useLocalSearchParams<{ cuisine?: string }>();
+  const { cuisine, use } = useLocalSearchParams<{ cuisine?: string; use?: string }>();
   const inventory = useKitchen((s) => s.inventory);
+  const dismissedExpiry = useKitchen((s) => s.dismissedExpiry);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [recipes, setRecipes] = useState<RankedRecipe[]>([]);
   const [active, setActive] = useState<Set<ChipKey>>(new Set());
+
+  const expiringMode = use === 'expiring';
+
+  // The bundle of expiring items to cook from — matches the /expiring screen.
+  const targets = useMemo(() => {
+    if (!expiringMode) return [];
+    const skip = new Set(dismissedExpiry);
+    return inventory
+      .map(withSeedMeta)
+      .filter((i) => !skip.has(i.id) && (needsAttention(i) || comingUp(i)))
+      .map((i) => i.name);
+  }, [expiringMode, inventory, dismissedExpiry]);
+  const targetsKey = targets.join(',');
 
   const filters = useMemo(() => chipsToFilters(active), [active]);
   const filtered = active.size > 0;
@@ -68,9 +89,11 @@ export default function RecipesScreen() {
     let isActive = true;
     setStatus('loading');
     const names = inventory.map((i) => i.name);
-    const request = cuisine
-      ? recommendByCuisine(cuisine, names, 30, filters)
-      : recommendRecipes(names, 20, filters);
+    const request = expiringMode
+      ? recommendUsingIngredients(targets, names, 20, filters)
+      : cuisine
+        ? recommendByCuisine(cuisine, names, 30, filters)
+        : recommendRecipes(names, 20, filters);
     request
       .then((r) => {
         if (!isActive) return;
@@ -81,11 +104,13 @@ export default function RecipesScreen() {
     return () => {
       isActive = false;
     };
-  }, [inventory, cuisine, filterKey]);
+  }, [inventory, cuisine, filterKey, expiringMode, targetsKey]);
 
-  const title = cuisine
-    ? `${cuisine} dishes you can make with your ingredients`
-    : 'Recommended recipes based on your ingredients and preferences...';
+  const title = expiringMode
+    ? 'Recipes to use up your expiring items'
+    : cuisine
+      ? `${cuisine} dishes you can make with your ingredients`
+      : 'Recommended recipes based on your ingredients and preferences...';
 
   return (
     <Screen showBack>
@@ -136,11 +161,13 @@ export default function RecipesScreen() {
       {status === 'ready' && recipes.length === 0 && (
         <View style={styles.center}>
           <Text style={styles.centerText}>
-            {filtered
-              ? 'No recipes match these filters — try removing one.'
-              : cuisine
-                ? `No ${cuisine.toLowerCase()} recipes in our recipe base yet — more are coming as we add sources.`
-                : 'No matches yet — add a few more ingredients to your inventory.'}
+            {expiringMode
+              ? 'No recipes for your expiring items right now.'
+              : filtered
+                ? 'No recipes match these filters — try removing one.'
+                : cuisine
+                  ? `No ${cuisine.toLowerCase()} recipes in our recipe base yet — more are coming as we add sources.`
+                  : 'No matches yet — add a few more ingredients to your inventory.'}
           </Text>
         </View>
       )}
@@ -164,10 +191,15 @@ export default function RecipesScreen() {
             <Text style={styles.cardTitle}>{recipe.title}</Text>
             <View style={styles.cardMeta}>
               <Text style={styles.metaText}>
-                uses {recipe.used.length} of your ingredients
-                {recipe.missing.length > 0
-                  ? ` · missing ${recipe.missing.length}`
-                  : ' · ready to cook'}
+                {expiringMode && recipe.usedExpiring
+                  ? `uses ${recipe.usedExpiring.length} expiring item${
+                      recipe.usedExpiring.length === 1 ? '' : 's'
+                    }${recipe.missing.length > 0 ? ` · missing ${recipe.missing.length}` : ''}`
+                  : `uses ${recipe.used.length} of your ingredients${
+                      recipe.missing.length > 0
+                        ? ` · missing ${recipe.missing.length}`
+                        : ' · ready to cook'
+                    }`}
               </Text>
             </View>
           </TouchableOpacity>

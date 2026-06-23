@@ -94,6 +94,18 @@ export default function ExpiringScreen() {
         </View>
       )}
 
+      {!empty && (
+        <TouchableOpacity
+          style={styles.bundle}
+          activeOpacity={0.85}
+          onPress={() => router.push({ pathname: '/recipes', params: { use: 'expiring' } })}>
+          <Ionicons name="sparkles-outline" size={17} color={Colors.text} />
+          <Text style={styles.bundleText}>
+            Find recipes using these {now.length + later.length} items
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {now.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionPill}>
@@ -151,6 +163,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     lineHeight: 22,
   },
+  bundle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.yellow,
+    marginTop: 16,
+  },
+  bundleText: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.text },
   section: { marginTop: 18 },
   sectionPill: {
     alignSelf: 'flex-start',

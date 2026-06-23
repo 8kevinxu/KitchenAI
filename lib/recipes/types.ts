@@ -29,6 +29,9 @@ export type RankedRecipe = RecipeSummary & {
   /** Recipe ingredients the user is missing. */
   missing: string[];
   score: number;
+  /** When focusing on a target set (e.g. expiring items), which of those this
+   *  recipe uses. Only set by recommendUsingIngredients. */
+  usedExpiring?: string[];
 };
 
 /** Optional dietary / time constraints applied to a recipe search. */
