@@ -47,6 +47,41 @@ export function inventoryMatcher(inventory: string[]): (ingredient: string) => b
 }
 
 /**
+ * Build a predicate telling whether a recipe ingredient's *best* inventory
+ * match is one of the `expiring` items. "Best" = most shared tokens, so
+ * "chicken bouillon" resolves to the bouillon you have rather than to expiring
+ * "chicken". A tie that includes an expiring item still flags it.
+ */
+export function expiringMatcher(
+  inventory: string[],
+  expiring: string[],
+): (ingredient: string) => boolean {
+  const expiringSet = new Set(expiring.map((n) => n.toLowerCase()));
+  const items = inventory
+    .map((name) => ({ expiring: expiringSet.has(name.toLowerCase()), set: tokens(name) }))
+    .filter((i) => i.set.size > 0);
+
+  return (ingredient: string) => {
+    const ing = tokens(ingredient);
+    if (ing.size === 0) return false;
+    let best = 0;
+    let bestExpiring = false;
+    for (const it of items) {
+      let overlap = 0;
+      for (const t of it.set) if (ing.has(t)) overlap += 1;
+      if (overlap === 0) continue;
+      if (overlap > best) {
+        best = overlap;
+        bestExpiring = it.expiring;
+      } else if (overlap === best && it.expiring) {
+        bestExpiring = true;
+      }
+    }
+    return best > 0 && bestExpiring;
+  };
+}
+
+/**
  * Rank recipes by how well they fit the inventory: prefer recipes that use the
  * most on-hand ingredients while missing the fewest. Recipes using fewer than
  * `minUsed` of the user's ingredients are dropped as noise.

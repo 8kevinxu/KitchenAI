@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { RECIPES } from '@/data/kitchen';
-import { getRecipeDetail, inventoryMatcher } from '@/lib/recipes';
+import { comingUp, needsAttention, RECIPES, withSeedMeta } from '@/data/kitchen';
+import { expiringMatcher, getRecipeDetail, inventoryMatcher } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
 
 /** Unified shape both local recipes and provider recipes render through. */
@@ -67,6 +67,18 @@ export default function RecipeDetailScreen() {
     () => inventoryMatcher(inventory.map((i) => i.name)),
     [inventory],
   );
+  // Flag recipe ingredients worth using up first — those whose best inventory
+  // match is expiring/expired or coming up soon.
+  const isExpiring = useMemo(() => {
+    const enriched = inventory.map(withSeedMeta);
+    const expiring = enriched
+      .filter((i) => needsAttention(i) || comingUp(i))
+      .map((i) => i.name);
+    return expiringMatcher(
+      enriched.map((i) => i.name),
+      expiring,
+    );
+  }, [inventory]);
   const allItems = useMemo(
     () => (display ? display.groups.flatMap((g) => g.items) : []),
     [display],
@@ -77,6 +89,10 @@ export default function RecipeDetailScreen() {
   );
   const haveCount = allItems.length - missingItems.length;
   const totalCount = allItems.length;
+  const expiringCount = useMemo(
+    () => allItems.filter((i) => isExpiring(i)).length,
+    [allItems, isExpiring],
+  );
 
   useEffect(() => {
     let active = true;
@@ -186,6 +202,17 @@ export default function RecipeDetailScreen() {
               style={{ marginLeft: 12 }}
             />
             <Text style={styles.legendText}>need to buy</Text>
+            {expiringCount > 0 && (
+              <>
+                <Ionicons
+                  name="time-outline"
+                  size={14}
+                  color={Colors.soon}
+                  style={{ marginLeft: 12 }}
+                />
+                <Text style={styles.legendText}>use soon</Text>
+              </>
+            )}
             <Text style={styles.haveCount}>
               {haveCount}/{totalCount}
             </Text>
@@ -197,6 +224,7 @@ export default function RecipeDetailScreen() {
                 {group.heading && <Text style={styles.groupHeading}>{group.heading}</Text>}
                 {group.items.map((item, ii) => {
                   const have = hasIngredient(item);
+                  const expiring = isExpiring(item);
                   return (
                     <View key={`${item}-${ii}`} style={styles.itemRow}>
                       <Ionicons
@@ -208,6 +236,12 @@ export default function RecipeDetailScreen() {
                       <Text style={[styles.groupItem, !have && styles.groupItemMissing]}>
                         {item}
                       </Text>
+                      {expiring && (
+                        <View style={styles.useSoonTag}>
+                          <Ionicons name="time-outline" size={12} color={Colors.soon} />
+                          <Text style={styles.useSoonTagText}>use soon</Text>
+                        </View>
+                      )}
                     </View>
                   );
                 })}
@@ -343,6 +377,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   groupItemMissing: { color: Colors.muted },
+  useSoonTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 4,
+    marginLeft: 6,
+  },
+  useSoonTagText: { fontFamily: Fonts.sansMedium, fontSize: 11, color: Colors.soon },
 
   sideTab: {
     position: 'absolute',

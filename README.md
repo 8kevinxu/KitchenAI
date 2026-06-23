@@ -39,7 +39,7 @@ Still ahead: user accounts, recipe filters, and expiration alerts (see
 | **Scan** | Live camera capture; sends the receipt to Claude vision to extract groceries |
 | **Scan review** | Confirm / uncheck / remove the parsed items before adding them to inventory |
 | **Recipes** | Recommended recipes ranked by inventory fit, with "missing ingredient" flags and dietary / time filter chips |
-| **Recipe detail** | Ingredients ↔ Directions tabs, save recipe, update inventory |
+| **Recipe detail** | Ingredients ↔ Directions tabs; per-ingredient indicators (in your kitchen / need to buy / use soon), add missing to grocery, save recipe, update inventory |
 | **Grocery List** | Auto-built from out / expired / low-stock items; add/remove custom items, select, and share |
 | **Profile** | Avatar and saved recipes |
 
