@@ -8,13 +8,6 @@ const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
  *  local-only mode if Supabase isn't configured yet. */
 export const isSupabaseConfigured = Boolean(url && anonKey);
 
-/**
- * Single shared dataset for now — every row is tagged with this id. When we
- * add accounts later, this becomes the authenticated user's id and the rest of
- * the data layer is unchanged.
- */
-export const CURRENT_USER_ID = 'demo';
-
 // Only construct the client when configured — createClient throws on an empty
 // URL. When unconfigured the app runs local-only and never touches `supabase`
 // (every call site is guarded by isSupabaseConfigured).
@@ -28,3 +21,14 @@ export const supabase: SupabaseClient = isSupabaseConfigured
       },
     })
   : (null as unknown as SupabaseClient);
+
+/**
+ * The signed-in user's id, used to scope every row. Read from the persisted
+ * session (no network). Null when unconfigured or signed out, in which case
+ * the data layer no-ops and the app runs purely on local state.
+ */
+export async function currentUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}

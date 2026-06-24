@@ -31,6 +31,7 @@ Still ahead: user accounts, recipe filters, and expiration alerts (see
 
 | Screen | Description |
 |--------|-------------|
+| **Login** | Email + password sign in / sign up (shown when a backend is configured and you're signed out) |
 | **Home** | Greeting, a soon-to-expire alert banner, + entry points: Inventory, Scan, Recipes, Grocery List |
 | **Inventory** | Ingredients grouped by Proteins / Vegetables / Carbs / Seasonings, with search, freshness dots, abundance meters, a "use soon" strip, and a summary line |
 | **Ingredient detail** | Status, expiration date, purchase info, and past uses for an item |
@@ -41,7 +42,7 @@ Still ahead: user accounts, recipe filters, and expiration alerts (see
 | **Recipes** | Recommended recipes ranked by inventory fit, with "missing ingredient" flags and dietary / time filter chips |
 | **Recipe detail** | Ingredients ↔ Directions tabs; per-ingredient indicators (in your kitchen / need to buy / use soon), add missing to grocery, save recipe, update inventory |
 | **Grocery List** | Auto-built from out / expired / low-stock items; add/remove custom items, select, and share |
-| **Profile** | Avatar and saved recipes |
+| **Profile** | Avatar, saved recipes, signed-in email + sign out |
 
 ## Tech stack
 
@@ -69,19 +70,25 @@ Then open the app in:
 ## Backend (optional)
 
 The app persists locally with AsyncStorage and runs fully **without** a backend.
-If you add Supabase, state also syncs to a hosted Postgres database (single
-shared dataset for now; the schema is user-ready for accounts later).
+If you add Supabase, state syncs to a hosted Postgres database, scoped per
+signed-in user.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
-   (Upgrading an older database? It also includes the one-line `alter table`
-   to add the `added_on` column used for live expiry dates.)
-3. Copy `.env.example` to `.env` and fill in your project URL + anon key
+   (Upgrading an older database? The file includes the one-line `alter table`
+   for the `added_on` expiry column and the migration from the old shared-demo
+   RLS policies to per-user ones.)
+3. In **Authentication → Providers → Email**, the Email provider is on by
+   default. For a frictionless demo, turn **"Confirm email" off** so sign-up
+   logs the user straight in. (Leave it on to require email verification.)
+4. Copy `.env.example` to `.env` and fill in your project URL + anon key
    (Project Settings → API).
 
-On launch the app seeds an empty database, then reads it as the source of
-truth and writes through on every change. Without `.env`, it silently falls
-back to local-only mode.
+When a backend is configured the app requires sign-in (email + password). Each
+new account is seeded with a starter inventory on first launch, then reads the
+database as the source of truth and writes through on every change. Row Level
+Security restricts every row to its owner. Without `.env`, the app skips auth
+and runs local-only.
 
 ### Spoonacular proxy (optional)
 
@@ -184,5 +191,5 @@ The build is organized around the four key features from the project proposal.
 ### Foundations
 - [x] Persist inventory, saved recipes, and grocery state (AsyncStorage + zustand)
 - [x] Sync to a hosted backend (Supabase / Postgres)
-- [ ] User accounts (Supabase Auth) — schema is already user-ready
+- [x] User accounts (Supabase Auth, email + password) — per-user data scoped by Row Level Security
 - [ ] Custom iconography to replace placeholder emoji

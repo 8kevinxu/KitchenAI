@@ -7,8 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Wordmark } from '@/components/wordmark';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { RECIPES, USER } from '@/data/kitchen';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { goBack } from '@/lib/nav';
 import { getRecipeDetail } from '@/lib/recipes';
+import { useAuth } from '@/store/auth-store';
 import { useKitchen } from '@/store/kitchen-store';
 
 type SavedCard = { id: string; title: string; image: string };
@@ -16,6 +18,8 @@ type SavedCard = { id: string; title: string; image: string };
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const savedIds = useKitchen((s) => s.savedRecipeIds);
+  const email = useAuth((s) => s.user?.email);
+  const signOut = useAuth((s) => s.signOut);
   const [saved, setSaved] = useState<SavedCard[]>([]);
 
   // Resolve saved ids to cards: local recipes instantly, provider recipes via fetch.
@@ -84,6 +88,17 @@ export default function ProfileScreen() {
               <Text style={styles.cardTitle}>{r.title}</Text>
             </TouchableOpacity>
           ))
+        )}
+
+        {isSupabaseConfigured && email && (
+          <View style={styles.account}>
+            <Text style={styles.accountLabel}>Signed in as</Text>
+            <Text style={styles.accountEmail}>{email}</Text>
+            <TouchableOpacity style={styles.signOut} activeOpacity={0.85} onPress={signOut}>
+              <Ionicons name="log-out-outline" size={18} color={Colors.text} />
+              <Text style={styles.signOutText}>SIGN OUT</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         <Text style={styles.footer}>Questions? {USER.email}</Text>
@@ -157,6 +172,20 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 8,
   },
+  account: { alignItems: 'center', marginTop: 36, gap: 4 },
+  accountLabel: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Colors.muted },
+  accountEmail: { fontFamily: Fonts.sansMedium, fontSize: 15, color: Colors.text, marginBottom: 12 },
+  signOut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 40,
+    paddingHorizontal: 22,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.text,
+  },
+  signOutText: { fontFamily: Fonts.sansMedium, fontSize: 14, color: Colors.text, letterSpacing: 0.5 },
   footer: {
     fontFamily: Fonts.serif,
     fontSize: 10,

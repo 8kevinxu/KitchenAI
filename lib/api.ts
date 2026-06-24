@@ -1,7 +1,5 @@
 import { Ingredient, IngredientStatus } from '@/data/kitchen';
-import { CURRENT_USER_ID, isSupabaseConfigured, supabase } from '@/lib/supabase';
-
-const uid = CURRENT_USER_ID;
+import { currentUserId, supabase } from '@/lib/supabase';
 
 type InventoryRow = {
   user_id: string;
@@ -14,7 +12,7 @@ type InventoryRow = {
   added_on: string | null;
 };
 
-const toRow = (i: Ingredient): InventoryRow => ({
+const toRow = (i: Ingredient, uid: string): InventoryRow => ({
   user_id: uid,
   id: i.id,
   name: i.name,
@@ -43,9 +41,11 @@ export type ServerState = {
   groceryChecked: Record<string, boolean>;
 };
 
-/** Read the full dataset for the current user, or null if not configured/empty. */
+/** Read the full dataset for the signed-in user, or null if not signed
+ *  in / not configured / no rows yet. */
 export async function fetchAll(): Promise<ServerState | null> {
-  if (!isSupabaseConfigured) return null;
+  const uid = await currentUserId();
+  if (!uid) return null;
 
   const [inv, saved, grocery] = await Promise.all([
     supabase.from('inventory').select('*').eq('user_id', uid),
@@ -57,7 +57,7 @@ export async function fetchAll(): Promise<ServerState | null> {
   if (saved.error) throw saved.error;
   if (grocery.error) throw grocery.error;
 
-  // No inventory rows yet → treat as an unseeded server.
+  // No inventory rows yet → treat as an unseeded account.
   if (!inv.data || inv.data.length === 0) return null;
 
   return {
@@ -69,10 +69,11 @@ export async function fetchAll(): Promise<ServerState | null> {
   };
 }
 
-/** Seed an empty server with the given starting state. */
+/** Seed an empty account with the given starting state. */
 export async function seed(state: ServerState): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  await supabase.from('inventory').upsert(state.inventory.map(toRow));
+  const uid = await currentUserId();
+  if (!uid) return;
+  await supabase.from('inventory').upsert(state.inventory.map((i) => toRow(i, uid)));
   if (state.savedRecipeIds.length) {
     await supabase
       .from('saved_recipes')
@@ -81,13 +82,15 @@ export async function seed(state: ServerState): Promise<void> {
 }
 
 export async function upsertItems(items: Ingredient[]): Promise<void> {
-  if (!isSupabaseConfigured || items.length === 0) return;
-  const { error } = await supabase.from('inventory').upsert(items.map(toRow));
+  const uid = await currentUserId();
+  if (!uid || items.length === 0) return;
+  const { error } = await supabase.from('inventory').upsert(items.map((i) => toRow(i, uid)));
   if (error) throw error;
 }
 
 export async function setSaved(recipeId: string, saved: boolean): Promise<void> {
-  if (!isSupabaseConfigured) return;
+  const uid = await currentUserId();
+  if (!uid) return;
   if (saved) {
     await supabase.from('saved_recipes').upsert({ user_id: uid, recipe_id: recipeId });
   } else {
@@ -100,7 +103,8 @@ export async function setSaved(recipeId: string, saved: boolean): Promise<void> 
 }
 
 export async function setGroceryChecked(itemId: string, checked: boolean): Promise<void> {
-  if (!isSupabaseConfigured) return;
+  const uid = await currentUserId();
+  if (!uid) return;
   await supabase
     .from('grocery_checked')
     .upsert({ user_id: uid, item_id: itemId, checked });
