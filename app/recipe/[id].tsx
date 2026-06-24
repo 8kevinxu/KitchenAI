@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { comingUp, needsAttention, RECIPES, withSeedMeta } from '@/data/kitchen';
+import { comingUp, needsAttention, RECIPES, withFreshness } from '@/data/kitchen';
 import { expiringMatcher, getRecipeDetail, inventoryMatcher } from '@/lib/recipes';
 import { useKitchen } from '@/store/kitchen-store';
 
@@ -70,7 +70,7 @@ export default function RecipeDetailScreen() {
   // Flag recipe ingredients worth using up first — those whose best inventory
   // match is expiring/expired or coming up soon.
   const isExpiring = useMemo(() => {
-    const enriched = inventory.map(withSeedMeta);
+    const enriched = inventory.map(withFreshness);
     const expiring = enriched
       .filter((i) => needsAttention(i) || comingUp(i))
       .map((i) => i.name);

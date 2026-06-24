@@ -6,6 +6,8 @@ import {
   INGREDIENTS,
   SAVED_RECIPE_IDS,
   SCANNED_ITEMS,
+  shelfLifeFor,
+  todayISO,
 } from '@/data/kitchen';
 import * as api from '@/lib/api';
 import { ParsedItem } from '@/lib/scan';
@@ -129,7 +131,11 @@ export const useKitchen = create<KitchenState>()(
 
       addScannedItems: () => {
         const have = new Set(get().inventory.map((i) => i.id));
-        const additions = SCANNED_ITEMS.filter((i) => !have.has(i.id)).map((i) => ({ ...i }));
+        const additions = SCANNED_ITEMS.filter((i) => !have.has(i.id)).map((i) => ({
+          ...i,
+          addedOn: todayISO(),
+          shelfLifeDays: shelfLifeFor(i),
+        }));
         if (additions.length) {
           set((s) => ({ inventory: [...s.inventory, ...additions] }));
           api.upsertItems(additions).catch(warn);
@@ -145,10 +151,21 @@ export const useKitchen = create<KitchenState>()(
           const byId = new Map(s.inventory.map((i) => [i.id, i]));
           for (const it of items) {
             const existing = byId.get(it.id);
-            // Re-stocking an item we already have: mark fresh, clear low/out flags.
-            const merged = existing
-              ? { ...existing, status: 'new' as const, lowStock: false }
-              : it;
+            // Re-stocking an item we already have: mark fresh, reset the expiry
+            // clock to today, clear low/out flags.
+            const merged: Ingredient = existing
+              ? {
+                  ...existing,
+                  status: 'new',
+                  lowStock: false,
+                  addedOn: todayISO(),
+                  shelfLifeDays: existing.shelfLifeDays ?? shelfLifeFor(existing),
+                }
+              : {
+                  ...it,
+                  addedOn: it.addedOn ?? todayISO(),
+                  shelfLifeDays: it.shelfLifeDays ?? shelfLifeFor(it),
+                };
             byId.set(it.id, merged);
             changed.push(merged);
           }

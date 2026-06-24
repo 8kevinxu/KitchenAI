@@ -4,7 +4,7 @@ import { ReactNode, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { freshnessOf, needsAttention, USER, withSeedMeta } from '@/data/kitchen';
+import { freshnessOf, needsAttention, USER, withFreshness } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
 type Action = {
@@ -47,7 +47,7 @@ export default function HomeScreen() {
 
   const attention = useMemo(() => {
     const skip = new Set(dismissed);
-    return inventory.map(withSeedMeta).filter((i) => needsAttention(i) && !skip.has(i.id));
+    return inventory.map(withFreshness).filter((i) => needsAttention(i) && !skip.has(i.id));
   }, [inventory, dismissed]);
 
   const expired = attention.filter((i) => freshnessOf(i) === 'expired').length;

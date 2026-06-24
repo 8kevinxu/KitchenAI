@@ -19,7 +19,7 @@ import {
   RankedRecipe,
   RecipeFilters,
 } from '@/lib/recipes';
-import { comingUp, needsAttention, withSeedMeta } from '@/data/kitchen';
+import { comingUp, needsAttention, withFreshness } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
 type ChipKey = 'vegetarian' | 'vegan' | 'glutenFree' | 'dairyFree' | 'quick';
@@ -60,7 +60,7 @@ export default function RecipesScreen() {
     if (!expiringMode) return [];
     const skip = new Set(dismissedExpiry);
     return inventory
-      .map(withSeedMeta)
+      .map(withFreshness)
       .filter((i) => !skip.has(i.id) && (needsAttention(i) || comingUp(i)))
       .map((i) => i.name);
   }, [expiringMode, inventory, dismissedExpiry]);

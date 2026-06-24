@@ -14,8 +14,13 @@ export type Ingredient = {
   status?: IngredientStatus;
   /** Staple that has dropped below the user's restock threshold. */
   lowStock?: boolean;
-  /** Days until expiration (<= 0 means expired). Undefined = no expiry tracked. */
+  /** Days until expiration (<= 0 means expired). Computed live from addedOn +
+   *  shelfLifeDays by withFreshness(); undefined = no expiry tracked. */
   daysLeft?: number;
+  /** ISO date (YYYY-MM-DD) the item was acquired. Drives live expiry. */
+  addedOn?: string;
+  /** Estimated days the item stays good after addedOn. */
+  shelfLifeDays?: number;
   /** How much of this item is on hand. */
   abundance?: Abundance;
   category: 'Proteins' | 'Vegetables' | 'Carbs' | 'Seasonings';
@@ -41,7 +46,62 @@ export type Cuisine = { name: string; emoji: string };
 
 export const USER = { name: 'Kevin Xu', email: 'support@aivirtualkitchen.com' };
 
-export const INGREDIENTS: Ingredient[] = [
+const DAY_MS = 86_400_000;
+
+const startOfToday = (today = new Date()) =>
+  new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+/** ISO date (YYYY-MM-DD) `delta` days from today (negative = in the past). */
+export function isoDaysFromToday(delta: number, today = new Date()): string {
+  return new Date(startOfToday(today).getTime() + delta * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Today as an ISO date string. */
+export const todayISO = (today = new Date()) => isoDaysFromToday(0, today);
+
+// Rough shelf-life estimates (days) once an item is in the kitchen. Checked by
+// name first (most specific), then by category. Used to turn a purchase date
+// into an expiry date when scanning/adding items.
+const SHELF_LIFE_BY_KEYWORD: { match: RegExp; days: number }[] = [
+  { match: /lettuce|spinach|kale|arugula|greens|herb|cilantro|basil|parsley/, days: 5 },
+  { match: /berr|strawberr|raspberr|blueberr/, days: 4 },
+  { match: /banana|avocado|peach|grape/, days: 5 },
+  { match: /tomato|cucumber|zucchini|mushroom|pepper(?!corn)|broccoli|asparagus/, days: 7 },
+  { match: /onion|potato|carrot|garlic|cabbage|squash|beet/, days: 21 },
+  { match: /apple|orange|lemon|lime|pear/, days: 21 },
+  { match: /fish|shrimp|salmon|seafood|cod|tuna|scallop/, days: 2 },
+  { match: /ground (beef|pork|turkey|chicken)|mince/, days: 2 },
+  { match: /chicken|poultry|turkey/, days: 3 },
+  { match: /beef|steak|pork|lamb|veal|\bmeat\b/, days: 5 },
+  { match: /bacon|sausage|deli|\bham\b|hot ?dog/, days: 7 },
+  { match: /milk|cream|yogurt|yoghurt/, days: 7 },
+  { match: /egg/, days: 21 },
+  { match: /cheese|butter/, days: 21 },
+  { match: /bread|bun|tortilla|bagel|roll/, days: 7 },
+  { match: /rice|pasta|flour|sugar|bean|lentil|oat|cereal|grain|noodle/, days: 365 },
+  { match: /oil|sauce|vinegar|honey|syrup|jam|ketchup|mustard|mayo|dressing/, days: 180 },
+  { match: /salt|pepper|spice|powder|bouillon|seasoning|stock|broth/, days: 365 },
+];
+
+const SHELF_LIFE_BY_CATEGORY: Record<Ingredient['category'], number> = {
+  Proteins: 4,
+  Vegetables: 6,
+  Carbs: 30,
+  Seasonings: 180,
+};
+
+/** Estimated shelf life (days) for an item, by name keyword then category. */
+export function shelfLifeFor(i: Pick<Ingredient, 'name' | 'category'>): number {
+  const name = i.name.toLowerCase();
+  for (const { match, days } of SHELF_LIFE_BY_KEYWORD) if (match.test(name)) return days;
+  return SHELF_LIFE_BY_CATEGORY[i.category] ?? 14;
+}
+
+// Seed items, expressed with the freshness spread we want the demo to show
+// (`daysLeft` = intended days remaining). withSeed() below turns that into a
+// concrete addedOn date relative to today, so the spread is realistic *and*
+// ages as real days pass.
+const SEED_INGREDIENTS: Ingredient[] = [
   { id: 'steak', name: 'steak', emoji: '🥩', daysLeft: 4, abundance: 'high', category: 'Proteins' },
   { id: 'ground-beef', name: 'ground beef', emoji: '🐄', daysLeft: 2, abundance: 'medium', category: 'Proteins' },
   { id: 'shrimp', name: 'shrimp', emoji: '🦐', daysLeft: 1, abundance: 'low', category: 'Proteins' },
@@ -66,6 +126,16 @@ export const INGREDIENTS: Ingredient[] = [
   { id: 'soy-sauce', name: 'soy sauce', emoji: '🥢', lowStock: true, daysLeft: 90, abundance: 'low', category: 'Seasonings' },
   { id: 'garlic-powder', name: 'garlic powder', emoji: '🧄', daysLeft: 250, abundance: 'medium', category: 'Seasonings' },
 ];
+
+/** Give a seed item a concrete addedOn so its (intended) daysLeft is realized
+ *  relative to today: expiry = addedOn + shelfLife = today + daysLeft. */
+function withSeed(i: Ingredient): Ingredient {
+  if (i.daysLeft === undefined) return i; // out-of-stock items: no expiry
+  const shelfLifeDays = i.shelfLifeDays ?? shelfLifeFor(i);
+  return { ...i, shelfLifeDays, addedOn: isoDaysFromToday(i.daysLeft - shelfLifeDays) };
+}
+
+export const INGREDIENTS: Ingredient[] = SEED_INGREDIENTS.map(withSeed);
 
 export const INGREDIENT_DETAILS: Record<string, IngredientDetail> = {
   steak: {
@@ -97,15 +167,37 @@ export function freshnessOf(i: Ingredient): Freshness | null {
 const ABUNDANCE_LEVEL: Record<Abundance, number> = { low: 1, medium: 2, high: 3 };
 export const abundanceLevel = (a?: Abundance) => (a ? ABUNDANCE_LEVEL[a] : 0);
 
-// Freshness (daysLeft) and abundance aren't persisted to the backend yet, so
-// fall back to the seed metadata by id. (Until receipt scanning supplies real
-// dates/quantities.) Shared by the inventory and grocery screens.
+/** Days from today until an item's expiry, from addedOn + shelf life. */
+function computeDaysLeft(addedOn: string, shelfLifeDays: number, today = new Date()): number {
+  const exp = new Date(addedOn + 'T00:00:00').getTime() + shelfLifeDays * DAY_MS;
+  return Math.round((exp - startOfToday(today).getTime()) / DAY_MS);
+}
+
 const SEED_META = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
-export const withSeedMeta = (i: Ingredient): Ingredient => ({
-  ...i,
-  daysLeft: i.daysLeft ?? SEED_META[i.id]?.daysLeft,
-  abundance: i.abundance ?? SEED_META[i.id]?.abundance,
-});
+
+/**
+ * Enrich an item with live freshness: compute daysLeft from addedOn + shelf
+ * life relative to today. Abundance isn't persisted to the backend yet, so it
+ * (and addedOn for legacy items that predate date tracking) falls back to the
+ * seed metadata by id. Shelf life is recomputed deterministically when absent.
+ */
+export function withFreshness(i: Ingredient): Ingredient {
+  const seed = SEED_META[i.id];
+  const addedOn = i.addedOn ?? seed?.addedOn;
+  const shelfLifeDays = i.shelfLifeDays ?? seed?.shelfLifeDays ?? shelfLifeFor(i);
+  const abundance = i.abundance ?? seed?.abundance;
+  const daysLeft = addedOn
+    ? computeDaysLeft(addedOn, shelfLifeDays)
+    : (i.daysLeft ?? seed?.daysLeft);
+  return { ...i, addedOn, shelfLifeDays, abundance, daysLeft };
+}
+
+/** Formatted expiry date, e.g. "Jun 27, 2026" (null if no date tracked). */
+export function expiryDateLabel(i: Ingredient): string | null {
+  if (!i.addedOn || i.shelfLifeDays === undefined) return null;
+  const exp = new Date(new Date(i.addedOn + 'T00:00:00').getTime() + i.shelfLifeDays * DAY_MS);
+  return exp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 /** Human phrase for an item's time-to-expiry, e.g. "expired 2d ago", "1 day left". */
 export function expiryLabel(i: Ingredient): string {

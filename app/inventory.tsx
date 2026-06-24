@@ -18,7 +18,7 @@ import {
   freshnessOf,
   Ingredient,
   useSoon,
-  withSeedMeta,
+  withFreshness,
 } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
@@ -102,7 +102,7 @@ function UseSoonStrip({ items }: { items: Ingredient[] }) {
 export default function InventoryScreen() {
   const [query, setQuery] = useState('');
   const rawInventory = useKitchen((s) => s.inventory);
-  const inventory = useMemo(() => rawInventory.map(withSeedMeta), [rawInventory]);
+  const inventory = useMemo(() => rawInventory.map(withFreshness), [rawInventory]);
 
   const grouped = useMemo(() => {
     const q = query.trim().toLowerCase();

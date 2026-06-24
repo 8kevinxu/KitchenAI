@@ -10,7 +10,7 @@ import {
   freshnessOf,
   Ingredient,
   needsAttention,
-  withSeedMeta,
+  withFreshness,
 } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
@@ -68,7 +68,7 @@ export default function ExpiringScreen() {
 
   const { now, later } = useMemo(() => {
     const skip = new Set(dismissed);
-    const enriched = inventory.map(withSeedMeta).filter((i) => !skip.has(i.id));
+    const enriched = inventory.map(withFreshness).filter((i) => !skip.has(i.id));
     const byDays = (a: Ingredient, b: Ingredient) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0);
     return {
       now: enriched.filter(needsAttention).sort(byDays),

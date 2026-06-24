@@ -11,6 +11,7 @@ type InventoryRow = {
   status: string | null;
   low_stock: boolean;
   category: string;
+  added_on: string | null;
 };
 
 const toRow = (i: Ingredient): InventoryRow => ({
@@ -21,6 +22,7 @@ const toRow = (i: Ingredient): InventoryRow => ({
   status: i.status ?? null,
   low_stock: !!i.lowStock,
   category: i.category,
+  added_on: i.addedOn ?? null,
 });
 
 const fromRow = (r: InventoryRow): Ingredient => ({
@@ -30,6 +32,9 @@ const fromRow = (r: InventoryRow): Ingredient => ({
   status: (r.status as IngredientStatus) ?? undefined,
   lowStock: r.low_stock,
   category: r.category as Ingredient['category'],
+  // Shelf life is recomputed deterministically by withFreshness, so only the
+  // purchase date needs persisting. May be absent on pre-migration databases.
+  addedOn: r.added_on ?? undefined,
 });
 
 export type ServerState = {

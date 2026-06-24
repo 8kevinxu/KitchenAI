@@ -74,6 +74,8 @@ shared dataset for now; the schema is user-ready for accounts later).
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
+   (Upgrading an older database? It also includes the one-line `alter table`
+   to add the `added_on` column used for live expiry dates.)
 3. Copy `.env.example` to `.env` and fill in your project URL + anon key
    (Project Settings → API).
 
@@ -154,7 +156,8 @@ The build is organized around the four key features from the project proposal.
 - [x] Real receipt scanning — camera → Claude vision (Haiku 4.5) extracts & normalizes items → review → inventory
 - [x] Expiration alerts — home banner + "use it up" review flow (cook / mark used-up → grocery / dismiss)
 - [x] Cook-from-expiring — bundle the expiring items and surface recipes that use them (or "no recipes")
-- [ ] Barcode scanning for single items; automatic shelf-life estimation
+- [x] Live expiry dates — purchase date + per-item shelf-life estimate → days-left computed from today (scanned/added items dated automatically; re-stocking resets the clock)
+- [ ] Barcode scanning for single items
 - [ ] Push notifications for soon-to-expire items (needs a dev build)
 
 ### 2. Recipe recommendations

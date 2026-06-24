@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { buildGroceryList, withSeedMeta } from '@/data/kitchen';
+import { buildGroceryList, withFreshness } from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
 type Row = { id: string; name: string; emoji: string; recipe?: string };
@@ -69,7 +69,7 @@ function GroceryRow({
 
 export default function GroceryScreen() {
   const rawInventory = useKitchen((s) => s.inventory);
-  const inventory = useMemo(() => rawInventory.map(withSeedMeta), [rawInventory]);
+  const inventory = useMemo(() => rawInventory.map(withFreshness), [rawInventory]);
   const checked = useKitchen((s) => s.groceryChecked);
   const customGrocery = useKitchen((s) => s.customGrocery);
   const dismissed = useKitchen((s) => s.dismissedGrocery);

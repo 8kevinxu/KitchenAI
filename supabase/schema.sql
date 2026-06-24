@@ -12,9 +12,13 @@ create table if not exists inventory (
   status     text,
   low_stock  boolean not null default false,
   category   text not null,
+  added_on   date,                 -- purchase date; drives live expiry (shelf life is recomputed client-side)
   updated_at timestamptz not null default now(),
   primary key (user_id, id)
 );
+
+-- Already have an inventory table from an earlier version? Add the new column:
+--   alter table inventory add column if not exists added_on date;
 
 -- Saved recipes ------------------------------------------------------------
 create table if not exists saved_recipes (

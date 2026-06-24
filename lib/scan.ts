@@ -1,4 +1,4 @@
-import { Ingredient } from '@/data/kitchen';
+import { Ingredient, shelfLifeFor, todayISO } from '@/data/kitchen';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 export type ParsedItem = {
@@ -33,15 +33,19 @@ function guessEmoji(name: string, category: Ingredient['category']) {
 const slugify = (name: string) =>
   name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
 
-/** Turn a parsed receipt line into an inventory ingredient (marked new). */
+/** Turn a parsed receipt line into an inventory ingredient (marked new, with a
+ *  purchase date of today and an estimated shelf life). */
 export function parsedToIngredient(p: ParsedItem): Ingredient {
+  const name = p.name.toLowerCase();
   return {
     id: slugify(p.name),
-    name: p.name.toLowerCase(),
+    name,
     emoji: guessEmoji(p.name, p.category),
     status: 'new',
     abundance: 'medium',
     category: p.category,
+    addedOn: todayISO(),
+    shelfLifeDays: shelfLifeFor({ name, category: p.category }),
   };
 }
 

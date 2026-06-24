@@ -2,7 +2,14 @@ import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/screen';
 import { Colors, Fonts } from '@/constants/theme';
-import { freshnessOf, Ingredient, INGREDIENT_DETAILS, INGREDIENTS } from '@/data/kitchen';
+import {
+  expiryDateLabel,
+  freshnessOf,
+  Ingredient,
+  INGREDIENT_DETAILS,
+  INGREDIENTS,
+  withFreshness,
+} from '@/data/kitchen';
 import { useKitchen } from '@/store/kitchen-store';
 
 const SEED_META = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
@@ -14,9 +21,10 @@ const ABUNDANCE_WORD = { high: 'Abundant', medium: 'Moderate', low: 'Running low
 function describe(item: Ingredient | undefined, id?: string) {
   const curated = id ? INGREDIENT_DETAILS[id] : undefined;
   const out = item?.status === 'out';
-  const expired = freshnessOf(item ?? ({} as Ingredient)) === 'expired';
-  const daysLeft = item?.daysLeft ?? (id ? SEED_META[id]?.daysLeft : undefined);
-  const abundance = item?.abundance ?? (id ? SEED_META[id]?.abundance : undefined);
+  const expired = !out && freshnessOf(item ?? ({} as Ingredient)) === 'expired';
+  const daysLeft = item?.daysLeft;
+  const abundance = item?.abundance;
+  const dateLabel = item ? expiryDateLabel(item) : null;
 
   const status = out
     ? 'Out of stock'
@@ -24,17 +32,34 @@ function describe(item: Ingredient | undefined, id?: string) {
       ? 'Expired'
       : (curated?.status ?? (abundance ? ABUNDANCE_WORD[abundance] : 'In stock'));
 
+  // Prefer a concrete date ("Jun 27, 2026"); fall back to a relative phrase.
+  const relative =
+    daysLeft !== undefined && daysLeft <= 0
+      ? 'Expired'
+      : daysLeft !== undefined
+        ? `~${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
+        : (curated?.expiration ?? '—');
   const expiration = out
     ? '—'
-    : daysLeft !== undefined && daysLeft <= 0
-      ? 'Expired'
-      : (curated?.expiration ??
-        (daysLeft !== undefined ? `~${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : '—'));
+    : expired
+      ? `Expired (${dateLabel ?? 'past'})`
+      : dateLabel
+        ? `${dateLabel} · ${relative}`
+        : relative;
+
+  const purchased =
+    item?.addedOn
+      ? `added ${new Date(item.addedOn + 'T00:00:00').toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}`
+      : (curated?.purchased ?? 'no purchase history yet');
 
   return {
     status,
     expiration,
-    purchased: curated?.purchased ?? 'no purchase history yet',
+    purchased,
     pastUses: curated?.pastUses ?? 'No past uses recorded.',
     alert: out || expired,
   };
@@ -53,7 +78,8 @@ function Field({ label, value, alert }: { label: string; value: string; alert?: 
 
 export default function IngredientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ingredient = useKitchen((s) => s.inventory.find((i) => i.id === id));
+  const raw = useKitchen((s) => s.inventory.find((i) => i.id === id));
+  const ingredient = raw ? withFreshness(raw) : undefined;
   const detail = describe(ingredient, id);
 
   const name = (ingredient?.name ?? SEED_META[id ?? '']?.name ?? 'ingredient').toUpperCase();
